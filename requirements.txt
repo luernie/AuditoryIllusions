@@ -1,10 +1,5 @@
-Package     Version
------------ -------
-cffi        1.17.1
-numpy       1.24.4
-pip         25.0.1
-pycparser   2.23
-pydub       0.25.1
-setuptools  41.2.0
-sounddevice 0.5.3
-soundfile   0.13.1
+numpy
+pydub
+sounddevice
+soundfile
+scipy

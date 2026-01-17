@@ -1,0 +1,167 @@
+# Risset Rhythm Generator - Improved Version
+
+## What Was Wrong with the Original Version?
+
+After comparing with professional examples (like the YouTube video), here are the key problems:
+
+### ❌ Original Issues:
+
+1. **Wrong tempo relationship** - Used arbitrary tempo ranges instead of the proper 2:1 ratio
+2. **Poor fade curves** - Used Gaussian curves which don't align perfectly
+3. **Too many competing layers** - 6 layers fighting for attention
+4. **Simple click sounds** - Just sine wave beeps, not musical
+5. **Imprecise timing** - Layers didn't hand off smoothly
+
+### ✅ Improvements in New Version:
+
+1. **Proper 2:1 tempo ratio** - Voice 1 goes 60→120 BPM, Voice 2 goes 120→240 BPM
+   - This is the ACADEMIC STANDARD for Risset Rhythms
+   - Each voice perfectly takes over where the previous one started
+
+2. **Cosine fade curves** - Mathematically perfect fades
+   - Voice fades IN as it starts (quiet → loud)
+   - Voice stays LOUD in the middle
+   - Voice fades OUT as it ends (loud → quiet)
+
+3. **3-4 voices (minimum 3)** - Just enough to fool the ear
+   - Voice 1: 60-120 BPM (fading in → loud → fading out)
+   - Voice 2: 120-240 BPM (fading in → loud → fading out)
+   - Voice 3: 240-480 BPM (fading in → loud → fading out)
+
+4. **Synthesized kick drums** - Rich, punchy sound
+   - Frequency envelope (pitch drops)
+   - Amplitude envelope (quick attack, decay)
+   - Harmonics for warmth
+
+5. **Perfect timing** - Voices align precisely at the loop point
+
+## How the 2:1 Ratio Works
+
+```
+Time:     0s ────────────────────────── 30s
+Voice 1:  60 BPM ──────────────────→ 120 BPM
+Voice 2:  120 BPM ─────────────────→ 240 BPM  
+Voice 3:  240 BPM ─────────────────→ 480 BPM
+
+Volume:
+Voice 1:  0% → 100% → 0%
+Voice 2:  0% → 100% → 0%
+Voice 3:  0% → 100% → 0%
+```
+
+**Key insight:** When Voice 1 reaches 120 BPM (its ending tempo), that's exactly where Voice 2 started! So when Voice 1 fades out, Voice 2 seamlessly continues the acceleration.
+
+## Usage
+
+### Install dependencies:
+```bash
+pip install numpy scipy pydub
+```
+
+### Run the improved version:
+```bash
+python risset_rhythm_improved.py
+```
+
+This generates 3 examples:
+- `risset_standard_improved.mp3` - Standard 3-voice version
+- `risset_smooth_improved.mp3` - Smoother 4-voice version
+- `risset_slow_improved.mp3` - Slower starting tempo
+
+### Customize it:
+
+```python
+from risset_rhythm_improved import ImprovedRissetRhythmGenerator
+
+generator = ImprovedRissetRhythmGenerator(
+    output_folder="my_output",
+    duration_seconds=30,      # How long the audio is
+    base_tempo=60,            # Slowest tempo (will double to 120)
+    num_voices=3              # 3-4 recommended (minimum 3)
+)
+
+generator.generate("my_risset.mp3")
+```
+
+## Parameters Explained
+
+### `base_tempo`
+- The slowest tempo in the cycle
+- The rhythm will go from `base_tempo` to `base_tempo * 2`
+- Examples:
+  - `base_tempo=40` → 40-80 BPM (slower, more subtle)
+  - `base_tempo=60` → 60-120 BPM (standard)
+  - `base_tempo=80` → 80-160 BPM (faster, more intense)
+
+### `num_voices`
+- How many overlapping tempo layers
+- **Minimum 3** to fool the ear properly
+- More voices = smoother (but diminishing returns after 4-5)
+- Recommended: 3 or 4
+
+### `duration_seconds`
+- How long each cycle takes
+- Longer = more gradual acceleration
+- Shorter = more rapid acceleration
+
+## Why This Sounds Better
+
+1. **The 2:1 ratio is key** - This is how the illusion works in nature/acoustics
+2. **Cosine fades are smooth** - No jarring transitions
+3. **Kick drums are musical** - Actually sounds like music, not a test tone
+4. **Precise alignment** - The loop point is perfect
+
+## Comparison to Shepard Tone
+
+Both use the same principle:
+
+| Shepard Tone | Risset Rhythm |
+|-------------|---------------|
+| **Pitch** rising forever | **Tempo** accelerating forever |
+| Multiple octaves layered | Multiple tempo layers |
+| 2:1 frequency ratio | 2:1 tempo ratio |
+| Fades low→high | Fades slow→fast |
+
+## Technical Details
+
+### Why 2:1 Ratio?
+This creates a perfect octave relationship in tempo. Just like Shepard Tone uses octaves (2:1 frequency ratio), Risset Rhythm uses "tempo octaves" (2:1 tempo ratio).
+
+### Fade Curve Math
+```python
+volume = (1 + cos((progress - 0.5) * 2π)) / 2
+```
+This creates a smooth bell curve:
+- At progress=0: volume=0 (silent)
+- At progress=0.5: volume=1 (full)
+- At progress=1: volume=0 (silent)
+
+### Voice Handoff
+When Voice 1 fades to 0% at tempo=120, Voice 2 is already at 100% volume at tempo=120. Your ear smoothly tracks Voice 2, never noticing Voice 1 disappeared!
+
+## Troubleshooting
+
+**"Sounds choppy/glitchy"**
+- Increase `num_voices` to 4 or 5
+- Make sure scipy and pydub are installed correctly
+
+**"Can't hear the acceleration"**
+- Try a lower `base_tempo` (like 40 BPM)
+- Increase `duration_seconds` for more gradual changes
+
+**"Sounds too fast/intense"**
+- Lower the `base_tempo`
+- Increase `duration_seconds`
+
+**"Doesn't loop smoothly"**
+- This shouldn't happen with the improved version
+- Make sure you're using at least 3 voices
+
+## Credits
+
+Based on Jean-Claude Risset's original work on auditory illusions.
+
+Implementation follows academic standards from:
+- Dan Stowell's paper on Risset Rhythms
+- Proper 2:1 tempo ratio methodology
+- Cosine fade envelope technique
