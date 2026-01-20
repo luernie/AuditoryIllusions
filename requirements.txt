@@ -3,3 +3,4 @@ pydub
 sounddevice
 soundfile
 scipy
+pygame
