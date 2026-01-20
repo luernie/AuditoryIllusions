@@ -100,8 +100,8 @@ def generate_risset(
     # Normalize
     mix /= np.max(np.abs(mix) + 1e-9)
 
-    wav_path = os.path.join(output_dir, filename.replace(".mp3", ".wav"))
-    mp3_path = os.path.join(output_dir, filename)
+    wav_path = os.path.join(output_dir, f"risset_{'up' if accelerating else 'down'}_{duration}s_{num_layers}layers.wav")
+    mp3_path = os.path.join(output_dir, f"risset_{'up' if accelerating else 'down'}_{duration}s_{num_layers}layers.mp3")
 
     sf.write(wav_path, mix, sample_rate)
     AudioSegment.from_wav(wav_path).export(mp3_path, format="mp3", bitrate="320k")
@@ -114,19 +114,34 @@ def generate_risset(
 # Example usage
 # -----------------------------
 
-if __name__ == "__main__":
-    generate_risset(
-        filename="risset_exponential_increase.mp3",
-        duration=20,
-        base_tempo=80,
-        num_layers=3,
-        accelerating=True
-    )
+# if __name__ == "__main__":
+#     generate_risset(
+#         filename="risset_exponential_increase.mp3",
+#         duration=20,
+#         base_tempo=80,
+#         num_layers=3,
+#         accelerating=True
+#     )
 
-    generate_risset(
-        filename="risset_exponential_decrease.mp3",
-        duration=20,
-        base_tempo=80,
-        num_layers=3,
-        accelerating=False
-    )
+#     generate_risset(
+#         filename="risset_exponential_decrease.mp3",
+#         duration=20,
+#         base_tempo=80,
+#         num_layers=3,
+#         accelerating=False
+#     )
+if __name__ == "__main__":
+    # -----------------------------
+    # Accelerating (up)
+    # -----------------------------
+    generate_risset(filename="risset_up_8s_3layers.mp3", duration=8, base_tempo=60, num_layers=3, accelerating=True)
+    generate_risset(filename="risset_up_12s_3layers.mp3", duration=12, base_tempo=60, num_layers=3, accelerating=True)
+    generate_risset(filename="risset_up_16s_3layers.mp3", duration=16, base_tempo=60, num_layers=3, accelerating=True)
+
+    # -----------------------------
+    # Decelerating (down)
+    # -----------------------------
+    generate_risset(filename="risset_down_8s_3layers.mp3", duration=8, base_tempo=120, num_layers=3, accelerating=False)
+    generate_risset(filename="risset_down_12s_3layers.mp3", duration=12, base_tempo=120, num_layers=3, accelerating=False)
+    generate_risset(filename="risset_down_16s_3layers.mp3", duration=16, base_tempo=120, num_layers=3, accelerating=False)
+
