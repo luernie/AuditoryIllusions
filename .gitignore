@@ -1,7 +1,10 @@
 venv/
+.python-version
+
 pitch_ramps/
 tempo_ramps_simple/
 risset_classic/
 shepard_output/
-.python-version
 risset_output/
+risset_fixed/
+output/

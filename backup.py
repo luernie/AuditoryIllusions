@@ -212,7 +212,7 @@ if __name__ == "__main__":
         num_layers=3,  # Changed to 3
         direction='accelerating'
     )
-    gen_accel.generate("risset_accel_3layer.mp3")
+    gen_accel.generate("increase.mp3")
     
     # Decelerating with 3 layers (smoother)
     gen_decel = RissetRhythmGenerator(
@@ -222,37 +222,37 @@ if __name__ == "__main__":
         num_layers=3,  # Changed to 3
         direction='decelerating'
     )
-    gen_decel.generate("risset_decel_3layer.mp3")
+    gen_decel.generate("decrease.mp3")
     
-    # Accelerating with 2 layers (for comparison)
-    gen_accel_2 = RissetRhythmGenerator(
-        output_folder="risset_output",
-        duration_seconds=20,
-        base_tempo=80,
-        num_layers=2,
-        direction='accelerating'
-    )
-    gen_accel_2.generate("risset_accel_2layer.mp3")
+    # # Accelerating with 2 layers (for comparison)
+    # gen_accel_2 = RissetRhythmGenerator(
+    #     output_folder="risset_output",
+    #     duration_seconds=20,
+    #     base_tempo=80,
+    #     num_layers=2,
+    #     direction='accelerating'
+    # )
+    # gen_accel_2.generate("risset_accel_2layer.mp3")
     
-    # Decelerating with 2 layers (for comparison)
-    gen_decel_2 = RissetRhythmGenerator(
-        output_folder="risset_output",
-        duration_seconds=20,
-        base_tempo=80,
-        num_layers=2,
-        direction='decelerating'
-    )
-    gen_decel_2.generate("risset_decel_2layer.mp3")
+    # # Decelerating with 2 layers (for comparison)
+    # gen_decel_2 = RissetRhythmGenerator(
+    #     output_folder="risset_output",
+    #     duration_seconds=20,
+    #     base_tempo=80,
+    #     num_layers=2,
+    #     direction='decelerating'
+    # )
+    # gen_decel_2.generate("risset_decel_2layer.mp3")
     
-    # Decelerating with 4 layers (even smoother)
-    gen_decel_4 = RissetRhythmGenerator(
-        output_folder="risset_output",
-        duration_seconds=20,
-        base_tempo=80,
-        num_layers=4,
-        direction='decelerating'
-    )
-    gen_decel_4.generate("risset_decel_4layer.mp3")
+    # # Decelerating with 4 layers (even smoother)
+    # gen_decel_4 = RissetRhythmGenerator(
+    #     output_folder="risset_output",
+    #     duration_seconds=20,
+    #     base_tempo=80,
+    #     num_layers=4,
+    #     direction='decelerating'
+    # )
+    # gen_decel_4.generate("risset_decel_4layer.mp3")
     
     print("\n" + "="*70)
     print("FILES GENERATED:")
