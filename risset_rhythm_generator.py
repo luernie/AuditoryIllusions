@@ -250,7 +250,7 @@ if __name__ == "__main__":
     # Slower version
     generator_slow = ClassicRissetRhythm(
         output_folder="risset_classic",
-        duration_seconds=30,
+        duration_seconds=15,
         base_tempo=60,
         num_layers=2
     )
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     generator_fast = ClassicRissetRhythm(
         output_folder="risset_classic",
         duration_seconds=15,
-        base_tempo=100,
+        base_tempo=120,
         num_layers=2
     )
     generator_fast.generate("risset_fast.mp3")
