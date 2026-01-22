@@ -23,12 +23,14 @@ os.makedirs(output_dir, exist_ok=True)
 # Format: [start_BPM, end_BPM, duration_s, beep_freq_Hz, beep_duration_s]
 # -----------------------------
 ramps = [
-    [60, 100, 8, 800, 0.1],   # Fast acceleration (up)
-    [60, 100, 12, 800, 0.1],  # Medium acceleration (up)
-    [60, 100, 16, 800, 0.1],  # Slow acceleration (up)
-    [100, 60, 8, 800, 0.1],   # Fast acceleration (down)
-    [100, 60, 12, 800, 0.1],  # Medium acceleration (down)
-    [100, 60, 16, 800, 0.1],  # Slow acceleration (down)
+    [60, 60, 8, 700, 0.1],   # Constant
+
+    [60, 80, 8, 700, 0.1],   # Fast acceleration (up)
+    [60, 90, 8, 700, 0.1],  # Medium acceleration (up)
+    [60, 100, 8, 700, 0.1],  # Slow acceleration (up)
+    [80, 60, 8, 700, 0.1],   # Fast acceleration (down)
+    [90, 60, 8, 700, 0.1],  # Medium acceleration (down)
+    [100, 60, 8, 700, 0.1],  # Slow acceleration (down)
 ]
 
 # -----------------------------
