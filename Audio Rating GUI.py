@@ -354,7 +354,7 @@ class AudioRatingApp:
         if not self.audio_files:
             return
         
-        if messagebox.askyesno("Clear All", "Reset all ratings to 0?"):
+        if messagebox.askyesno("Clear All", "Reset all ratings to 0?"):   
             if self.current_playing is not None:
                 pygame.mixer.music.stop()
                 self.current_playing = None
