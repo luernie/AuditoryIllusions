@@ -13,13 +13,22 @@ print("\n")
 df_normalized = df.copy()
 
 # Define subject groups
+# subject_groups = {
+#     'E': ['E1', 'E2', 'E3'],
+#     'R': ['R1', 'R2', 'R3'],
+#     'C': ['C1', 'C2', 'C3'],
+#     'L': ['L1', 'L2', 'L3'],
+#     'N': ['N1', 'N2', 'N3']
+# }
+
+# Automatically detect subjects from row index (e.g., E1, E2, E3)
+subjects = sorted({idx.rstrip('0123456789') for idx in df.index})
+
 subject_groups = {
-    'E': ['E1', 'E2', 'E3'],
-    'R': ['R1', 'R2', 'R3'],
-    'C': ['C1', 'C2', 'C3'],
-    'L': ['L1', 'L2', 'L3'],
-    'N': ['N1', 'N2', 'N3']
+    s: df.index[df.index.str.startswith(s)].tolist()
+    for s in subjects
 }
+
 
 # Normalize by subject group
 for group_name, indices in subject_groups.items():
@@ -35,7 +44,7 @@ for group_name, indices in subject_groups.items():
         df_normalized.loc[indices] = 0
     else:
         # Normalize: (value - min) / (max - min) * 10
-        df_normalized.loc[indices] = ((group_data - min_val) / (max_val - min_val)) * 10
+        df_normalized.loc[indices] = ((group_data - min_val) / (max_val - min_val))
 
 # Round to 2 decimal places
 df_normalized = df_normalized.round(2)
@@ -51,10 +60,19 @@ print(f"Normalized data saved to: {output_path}")
 
 # Prepare data for grouped box plot
 # Group participants by their trial number (1, 2, or 3)
+# participant_groups = {
+#     'H': ['E1', 'R1', 'C1', 'L1', 'N1'],      # Trial 1 across all subjects
+#     'AH': ['E2', 'R2', 'C2', 'L2', 'N2'],     # Trial 2 across all subjects
+#     'NH': ['E3', 'R3', 'C3', 'L3', 'N3']      # Trial 3 across all subjects
+# }
+
+# Automatically detect trial groups
+trial_numbers = sorted({idx[-1] for idx in df.index})  # assumes last character is trial number
+
 participant_groups = {
-    'H': ['E1', 'R1', 'C1', 'L1', 'N1'],      # Trial 1 across all subjects
-    'AH': ['E2', 'R2', 'C2', 'L2', 'N2'],     # Trial 2 across all subjects
-    'NH': ['E3', 'R3', 'C3', 'L3', 'N3']      # Trial 3 across all subjects
+    'H':  df.index[df.index.str.endswith('1')].tolist(),   # Trial 1
+    'AH': df.index[df.index.str.endswith('2')].tolist(),   # Trial 2
+    'NH': df.index[df.index.str.endswith('3')].tolist()    # Trial 3
 }
 
 # Create the grouped box plot
@@ -112,7 +130,7 @@ ax.set_xticks(x_positions)
 ax.set_xticklabels(conditions, fontsize=11)
 ax.legend(box_plots, group_labels, loc='upper left', fontsize=11)
 ax.grid(True, alpha=0.3, axis='y')
-ax.set_ylim(-0.5, 11)
+ax.set_ylim(-0.05, 1.05)
 
 plt.tight_layout()
 
