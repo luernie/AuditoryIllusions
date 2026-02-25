@@ -12,9 +12,23 @@ os.makedirs(output_dir, exist_ok=True)
 # Format: [start_Hz, end_Hz, duration_s, amplitude (0-1)]
 # =========================
 ramps = [
-    [200, 400, 5, 0.8],    # 200->400 Hz over 5s
-    [300, 800, 10, 0.8],   # 300->800 Hz over 10s
-    [500, 2000, 12, 0.8]   # 500->2000 Hz over 12s
+    # --- Rising ---
+    # Slow (matches rise_rate=1.0): ~0.125 oct/s
+    [110, 156, 8, 0.7],      # 110→156 Hz, 8s  (0.5 oct = 0.125 oct/s * 4s... narrow but audible)
+    
+    # Medium (matches rise_rate=1.5): ~0.1875 oct/s  
+    [110, 220, 8, 0.7],      # 110→220 Hz, 8s  (1 full octave, very clean reference)
+    
+    # Fast (matches rise_rate=2.0): ~0.25 oct/s
+    [110, 440, 8, 0.7],      # 110→440 Hz, 8s  (2 octaves, clearly audible climb)
+
+    # --- Falling ---
+    [220, 156, 8, 0.7],      # mirror of slow rise
+    [440, 220, 8, 0.7],      # mirror of medium rise (1 octave down)
+    [880, 220, 8, 0.7],      # mirror of fast rise (2 octaves down)
+
+    # --- Constant (anchor/baseline) ---
+    [220, 220, 8, 0.7],      # steady A3, dead center of the range
 ]
 
 # =========================
