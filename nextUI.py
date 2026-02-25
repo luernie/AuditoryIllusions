@@ -19,3 +19,6 @@ for i, device in enumerate(sd.query_devices()):
     if device['max_output_channels'] > 0:
         print(f"[{i}] {device['name']}")
         play_test_tone(i)
+
+
+        print("idkidkidk")
