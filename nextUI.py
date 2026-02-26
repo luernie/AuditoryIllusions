@@ -1,243 +1,348 @@
 """
 Audio Perception Ranker
 =======================
-Install:  pip install pywebview
+Install:  pip install pygame
 Run:      python audio_ranker.py
 
 Set AUDIO_FOLDER below to point at your audio files.
 """
 
-import webview
-import base64
-from pathlib import Path
-from datetime import date
+import tkinter as tk
+from tkinter import messagebox
+import os
+from datetime import datetime
+import pygame
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 AUDIO_FOLDER = "./audio"          # <-- change this to your folder path
-WINDOW_TITLE = "Pitch Perception Ranker"
-WINDOW_W, WINDOW_H = 980, 820
 # ─────────────────────────────────────────────────────────────────────────────
 
-AUDIO_EXTENSIONS = {'.wav', '.mp3', '.flac', '.ogg', '.aac', '.m4a'}
-MIME = {
-    '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.flac': 'audio/flac',
-    '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.m4a': 'audio/mp4',
-}
+os.environ['SDL_AUDIODRIVER'] = 'directsound' if os.name == 'nt' else 'alsa'
+pygame.mixer.init()
 
-HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Pitch Perception Ranker</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg:#0d0d0f; --surface:#141418; --border:#2a2a32;
-    --accent:#c8f060; --text:#e8e8ec; --muted:#666672;
-    --neg:#ff6b6b; --pos:#6bffb8; --mid:#ffd166;
-  }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'DM Mono',monospace; min-height:100vh; padding:36px 24px 80px; }
+AUDIO_EXTENSIONS = ('.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac')
 
-  header { max-width:860px; margin:0 auto 36px; border-bottom:1px solid var(--border); padding-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; }
-  header h1 { font-family:'Instrument Serif',serif; font-size:2rem; font-weight:400; letter-spacing:-0.02em; }
-  header h1 span { color:var(--accent); font-style:italic; }
-  .subtitle { color:var(--muted); font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; margin-top:4px; }
-  .folder-tag { font-size:0.7rem; color:var(--muted); background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:4px 10px; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .folder-tag span { color:var(--accent); }
-
-  .cards-container { max-width:860px; margin:0 auto; display:flex; flex-direction:column; gap:10px; }
-  .card {
-    background:var(--surface); border:1px solid var(--border); border-radius:10px;
-    padding:16px 20px; display:grid; grid-template-columns:28px 1fr; align-items:center;
-    gap:14px; animation:slideIn 0.25s ease forwards; opacity:0;
-  }
-  .card:hover { border-color:#3a3a46; }
-  .rank-badge { font-size:0.65rem; color:var(--muted); text-align:center; }
-  .card-body { display:flex; flex-direction:column; gap:10px; }
-  .card-top { display:flex; align-items:center; gap:10px; }
-  .play-btn {
-    background:none; border:1px solid var(--border); color:var(--text);
-    width:32px; height:32px; border-radius:50%; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; font-size:0.7rem; flex-shrink:0;
-    transition:border-color 0.15s, background 0.15s;
-  }
-  .play-btn:hover { border-color:var(--accent); color:var(--accent); }
-  .play-btn.playing { border-color:var(--accent); background:rgba(200,240,96,0.1); color:var(--accent); }
-  .filename { font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:560px; }
-  .slider-row { display:flex; align-items:center; gap:10px; }
-  .lbl { font-size:0.62rem; white-space:nowrap; }
-  .lbl.neg { color:var(--neg); } .lbl.pos { color:var(--pos); }
-  input[type=range] {
-    -webkit-appearance:none; flex:1; height:4px; border-radius:2px; outline:none; cursor:pointer;
-    background:linear-gradient(to right,var(--neg),var(--mid),var(--pos));
-  }
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
-    background:var(--text); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--accent); cursor:grab;
-    transition:transform 0.1s;
-  }
-  input[type=range]:active::-webkit-slider-thumb { transform:scale(1.2); cursor:grabbing; }
-  .score-val { font-size:0.75rem; min-width:34px; text-align:right; font-variant-numeric:tabular-nums; }
-  .score-val.neg{color:var(--neg);} .score-val.pos{color:var(--pos);} .score-val.zero{color:var(--muted);}
-
-  .footer { max-width:860px; margin:36px auto 0; display:flex; align-items:center; justify-content:space-between; padding-top:18px; border-top:1px solid var(--border); }
-  .progress { font-size:0.75rem; color:var(--muted); }
-  .progress span { color:var(--accent); }
-  .export-btn {
-    background:var(--accent); color:#0d0d0f; border:none; padding:10px 22px;
-    border-radius:6px; font-family:'DM Mono',monospace; font-size:0.78rem; font-weight:500; cursor:pointer; transition:background 0.15s;
-  }
-  .export-btn:hover { background:#d4f570; }
-  .empty { max-width:860px; margin:60px auto; text-align:center; color:var(--muted); font-size:0.8rem; }
-
-  @keyframes slideIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
-</style>
-</head>
-<body>
-
-<header>
-  <div>
-    <h1>Pitch Perception <span>Ranker</span></h1>
-    <p class="subtitle">Psychoacoustics · Drag sliders to rank · Export results</p>
-  </div>
-  <div class="folder-tag" id="folderLabel">loading...</div>
-</header>
-
-<div class="cards-container" id="cards">
-  <div class="empty">Loading audio files...</div>
-</div>
-
-<div class="footer">
-  <div class="progress"><span id="ratedCount">0</span> / <span id="totalCount">0</span> rated</div>
-  <button class="export-btn" onclick="exportCSV()">Export Results ↓</button>
-</div>
-
-<script>
-  let items = [];
-  let currentAudio = null;
-  let currentBtn = null;
-
-  async function init() {
-    const data = await pywebview.api.get_files();
-    document.getElementById('folderLabel').textContent = data.folder;
-    items = data.files.map(f => ({ filename: f, score: 0 }));
-    document.getElementById('totalCount').textContent = items.length;
-    renderCards();
-  }
-
-  function renderCards() {
-    const container = document.getElementById('cards');
-    container.innerHTML = '';
-    const sorted = [...items].sort((a, b) => a.score - b.score);
-
-    sorted.forEach((item, idx) => {
-      const sc = item.score;
-      const cls = sc < 0 ? 'neg' : sc > 0 ? 'pos' : 'zero';
-      const sign = sc > 0 ? '+' : '';
-
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = (idx * 30) + 'ms';
-      card.innerHTML = `
-        <div class="rank-badge">${idx + 1}</div>
-        <div class="card-body">
-          <div class="card-top">
-            <button class="play-btn">&#9654;</button>
-            <span class="filename" title="${item.filename}">${item.filename}</span>
-          </div>
-          <div class="slider-row">
-            <span class="lbl neg">-10 decreasing</span>
-            <input type="range" min="-10" max="10" step="1" value="${sc}">
-            <span class="lbl pos">+10 increasing</span>
-            <span class="score-val ${cls}">${sign}${sc}</span>
-          </div>
-        </div>`;
-
-      card.querySelector('.play-btn').addEventListener('click', async function () {
-        if (currentAudio && !currentAudio.paused) {
-          currentAudio.pause(); currentAudio.currentTime = 0;
-          if (currentBtn) { currentBtn.innerHTML = '&#9654;'; currentBtn.classList.remove('playing'); }
-          if (currentBtn === this) { currentAudio = null; currentBtn = null; return; }
-        }
-        const result = await pywebview.api.get_audio(item.filename);
-        if (!result) return;
-        currentAudio = new Audio(result.data_url);
-        currentBtn = this;
-        this.innerHTML = '&#9646;&#9646;'; this.classList.add('playing');
-        currentAudio.play();
-        currentAudio.onended = () => {
-          this.innerHTML = '&#9654;'; this.classList.remove('playing');
-          currentAudio = null; currentBtn = null;
-        };
-      });
-
-      card.querySelector('input[type=range]').addEventListener('input', function () {
-        item.score = parseInt(this.value);
-        const v = item.score;
-        const scoreEl = this.closest('.slider-row').querySelector('.score-val');
-        scoreEl.textContent = (v > 0 ? '+' : '') + v;
-        scoreEl.className = 'score-val ' + (v < 0 ? 'neg' : v > 0 ? 'pos' : 'zero');
-        updateProgress();
-        clearTimeout(window._t);
-        window._t = setTimeout(renderCards, 350);
-      });
-
-      container.appendChild(card);
-    });
-
-    updateProgress();
-  }
-
-  function updateProgress() {
-    document.getElementById('ratedCount').textContent = items.filter(i => i.score !== 0).length;
-  }
-
-  async function exportCSV() {
-    const sorted = [...items].sort((a, b) => a.score - b.score);
-    const rows = [['Rank','Filename','Score'], ...sorted.map((it, i) => [i+1, it.filename, it.score])];
-    const csv = rows.map(r => r.join(',')).join('\n');
-    await pywebview.api.save_csv(csv);
-  }
-
-  window.addEventListener('pywebviewready', init);
-</script>
-</body>
-</html>
-"""
+BG      = "#0d0d0f"
+SURFACE = "#141418"
+BORDER  = "#2a2a32"
+ACCENT  = "#c8f060"
+TEXT    = "#e8e8ec"
+MUTED   = "#666672"
+NEG     = "#ff6b6b"
+POS     = "#6bffb8"
+BTN_BG  = "#1e1e24"
 
 
-class API:
-    def get_files(self):
-        folder = Path(AUDIO_FOLDER).resolve()
+class AudioRatingApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Pitch Perception Ranker")
+        self.root.geometry("1100x700")
+        self.root.resizable(True, True)
+        self.root.configure(bg=BG)
+
+        self.audio_files = []    # list of [filepath, score]
+        self.current_playing = None
+        self.audio_widgets = []
+        self._sort_job = None
+
+        self._build_ui()
+        self._load_folder()
+
+    # ── UI SETUP ──────────────────────────────────────────────────────────────
+
+    def _build_ui(self):
+        # Header
+        header = tk.Frame(self.root, bg=BG)
+        header.pack(fill=tk.X, padx=24, pady=(24, 0))
+
+        tk.Label(header, text="Pitch Perception Ranker",
+                 bg=BG, fg=ACCENT, font=("Georgia", 20, "italic")).pack(side=tk.LEFT)
+
+        self.folder_label = tk.Label(header, text="", bg=SURFACE, fg=MUTED,
+                                     font=("Courier", 9), padx=10, pady=4)
+        self.folder_label.pack(side=tk.RIGHT)
+
+        tk.Frame(self.root, bg=BORDER, height=1).pack(fill=tk.X, padx=24, pady=12)
+
+        # Scrollable canvas
+        canvas_frame = tk.Frame(self.root, bg=BG)
+        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=24)
+
+        self.canvas = tk.Canvas(canvas_frame, bg=BG, highlightthickness=0)
+        scrollbar = tk.Scrollbar(canvas_frame, orient="vertical",
+                                 command=self.canvas.yview)
+        self.inner = tk.Frame(self.canvas, bg=BG)
+
+        self.inner.bind("<Configure>", lambda e: self.canvas.configure(
+            scrollregion=self.canvas.bbox("all")))
+
+        self._canvas_win = self.canvas.create_window(
+            (0, 0), window=self.inner, anchor="nw")
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+        self.canvas.bind("<Configure>",
+                         lambda e: self.canvas.itemconfig(
+                             self._canvas_win, width=e.width))
+
+        self.canvas.bind_all("<MouseWheel>", self._on_scroll)
+        self.canvas.bind_all("<Button-4>",   self._on_scroll)
+        self.canvas.bind_all("<Button-5>",   self._on_scroll)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Footer
+        tk.Frame(self.root, bg=BORDER, height=1).pack(fill=tk.X, padx=24, pady=(12, 0))
+
+        footer = tk.Frame(self.root, bg=BG)
+        footer.pack(fill=tk.X, padx=24, pady=12)
+
+        self.progress_label = tk.Label(footer, text="0 / 0 rated",
+                                       bg=BG, fg=MUTED, font=("Courier", 10))
+        self.progress_label.pack(side=tk.LEFT)
+
+        tk.Button(footer, text="Clear All", bg=BTN_BG, fg=TEXT,
+                  font=("Courier", 10), relief=tk.FLAT, padx=16, pady=6,
+                  activebackground=BORDER, activeforeground=TEXT,
+                  cursor="hand2", command=self._clear).pack(side=tk.RIGHT, padx=(8, 0))
+
+        tk.Button(footer, text="Export Results  v", bg=ACCENT, fg="#0d0d0f",
+                  font=("Courier", 10, "bold"), relief=tk.FLAT, padx=16, pady=6,
+                  activebackground="#d4f570", cursor="hand2",
+                  command=self._export).pack(side=tk.RIGHT)
+
+    def _on_scroll(self, event):
+        if event.num == 5 or (hasattr(event, 'delta') and event.delta < 0):
+            self.canvas.yview_scroll(1, "units")
+        else:
+            self.canvas.yview_scroll(-1, "units")
+
+    # ── LOAD ──────────────────────────────────────────────────────────────────
+
+    def _load_folder(self):
+        folder = os.path.abspath(AUDIO_FOLDER)
+        if not os.path.isdir(folder):
+            messagebox.showerror("Folder not found", f"Could not find:\n{folder}")
+            return
+
         files = sorted([
-            f.name for f in folder.iterdir()
-            if f.suffix.lower() in AUDIO_EXTENSIONS
+            os.path.join(folder, f) for f in os.listdir(folder)
+            if f.lower().endswith(AUDIO_EXTENSIONS)
         ])
-        return {"folder": str(folder), "files": files}
 
-    def get_audio(self, filename):
-        path = Path(AUDIO_FOLDER).resolve() / filename
-        if not path.exists():
-            return None
-        mime = MIME.get(path.suffix.lower(), 'audio/octet-stream')
-        data = base64.b64encode(path.read_bytes()).decode()
-        return {"data_url": f"data:{mime};base64,{data}"}
+        if not files:
+            messagebox.showwarning("No audio", "No audio files found in folder.")
+            return
 
-    def save_csv(self, csv_content):
-        out = Path(AUDIO_FOLDER).resolve() / f"rankings_{date.today()}.csv"
-        out.write_text(csv_content)
-        webview.windows[0].evaluate_js(f"alert('Saved to: {out}')")
+        self.audio_files = [[f, 0] for f in files]
+        self.folder_label.config(text=folder)
+        self._render()
+
+    # ── RENDER ────────────────────────────────────────────────────────────────
+
+    def _render(self):
+        try:
+            scroll_pos = self.canvas.yview()[0]
+        except Exception:
+            scroll_pos = 0.0
+
+        for w in self.inner.winfo_children():
+            w.destroy()
+        self.audio_widgets = []
+
+        order = sorted(range(len(self.audio_files)), key=lambda i: self.audio_files[i][1])
+
+        for rank, idx in enumerate(order):
+            self._make_row(rank, idx)
+
+        self._update_progress()
+        self.root.after(20, lambda: self.canvas.yview_moveto(scroll_pos))
+
+    def _make_row(self, rank, index):
+        filepath, score = self.audio_files[index]
+        filename = os.path.basename(filepath)
+
+        row = tk.Frame(self.inner, bg=SURFACE, pady=10, padx=14)
+        row.pack(fill=tk.X, pady=4)
+
+        # Rank badge
+        tk.Label(row, text=str(rank + 1), bg=SURFACE, fg=MUTED,
+                 font=("Courier", 10), width=3).grid(row=0, column=0, rowspan=2)
+
+        # Play button
+        is_playing = self.current_playing == index
+        play_btn = tk.Button(
+            row,
+            text="||" if is_playing else ">",
+            bg=BTN_BG, fg=ACCENT if is_playing else TEXT,
+            font=("Courier", 12, "bold"), width=3, relief=tk.FLAT,
+            activebackground=BORDER, activeforeground=ACCENT,
+            cursor="hand2",
+            command=lambda i=index: self._toggle_play(i)
+        )
+        play_btn.grid(row=0, column=1, rowspan=2, padx=(6, 14))
+
+        # Filename
+        tk.Label(row, text=filename, bg=SURFACE, fg=TEXT,
+                 font=("Courier", 10), anchor="w").grid(
+            row=0, column=2, sticky="w", pady=(0, 4))
+
+        # Slider row
+        slider_frame = tk.Frame(row, bg=SURFACE)
+        slider_frame.grid(row=1, column=2, sticky="ew")
+
+        tk.Label(slider_frame, text="-10", bg=SURFACE, fg=NEG,
+                 font=("Courier", 8)).pack(side=tk.LEFT)
+
+        slider = tk.Scale(
+            slider_frame, from_=-10, to=10, resolution=1,
+            orient=tk.HORIZONTAL, showvalue=0,
+            bg=SURFACE, fg=TEXT, troughcolor=BORDER,
+            highlightthickness=0, activebackground=ACCENT,
+            command=lambda val, i=index: self._on_slide(i, val)
+        )
+        slider.set(score)
+        slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
+
+        tk.Label(slider_frame, text="+10", bg=SURFACE, fg=POS,
+                 font=("Courier", 8)).pack(side=tk.LEFT)
+
+        # Score display
+        color = NEG if score < 0 else POS if score > 0 else MUTED
+        score_lbl = tk.Label(
+            row,
+            text=f"{score:+d}" if score != 0 else "0",
+            bg=SURFACE, fg=color,
+            font=("Courier", 13, "bold"), width=5
+        )
+        score_lbl.grid(row=0, column=3, rowspan=2, padx=(14, 0))
+
+        row.grid_columnconfigure(2, weight=1)
+
+        self.audio_widgets.append({
+            'index': index,
+            'play_btn': play_btn,
+            'score_lbl': score_lbl,
+            'slider': slider,
+        })
+
+    # ── PLAYBACK ──────────────────────────────────────────────────────────────
+
+    def _toggle_play(self, index):
+        try:
+            filepath = self.audio_files[index][0]
+
+            if self.current_playing is not None and self.current_playing != index:
+                pygame.mixer.music.stop()
+                self._set_play_icon(self.current_playing, playing=False)
+
+            if self.current_playing == index:
+                pygame.mixer.music.stop()
+                self._set_play_icon(index, playing=False)
+                self.current_playing = None
+            else:
+                pygame.mixer.music.load(filepath)
+                pygame.mixer.music.play()
+                self._set_play_icon(index, playing=True)
+                self.current_playing = index
+                self.root.after(100, lambda: self._check_end(index))
+
+        except Exception as e:
+            messagebox.showerror("Playback error", str(e))
+
+    def _set_play_icon(self, index, playing):
+        for w in self.audio_widgets:
+            if w['index'] == index:
+                w['play_btn'].config(
+                    text="||" if playing else ">",
+                    fg=ACCENT if playing else TEXT
+                )
+                break
+
+    def _check_end(self, index):
+        if not pygame.mixer.music.get_busy() and self.current_playing == index:
+            self._set_play_icon(index, playing=False)
+            self.current_playing = None
+        elif self.current_playing == index:
+            self.root.after(100, lambda: self._check_end(index))
+
+    # ── RATING ────────────────────────────────────────────────────────────────
+
+    def _on_slide(self, index, val):
+        score = int(float(val))
+        self.audio_files[index][1] = score
+
+        for w in self.audio_widgets:
+            if w['index'] == index:
+                color = NEG if score < 0 else POS if score > 0 else MUTED
+                w['score_lbl'].config(
+                    text=f"{score:+d}" if score != 0 else "0",
+                    fg=color
+                )
+                break
+
+        self._update_progress()
+
+        if self._sort_job is not None:
+            self.root.after_cancel(self._sort_job)
+        self._sort_job = self.root.after(400, self._render)
+
+    def _update_progress(self):
+        rated = sum(1 for _, s in self.audio_files if s != 0)
+        total = len(self.audio_files)
+        self.progress_label.config(text=f"{rated} / {total} rated")
+
+    # ── EXPORT ────────────────────────────────────────────────────────────────
+
+    def _export(self):
+        if not self.audio_files:
+            messagebox.showwarning("No data", "No files loaded.")
+            return
+
+        sorted_files = sorted(self.audio_files, key=lambda x: x[1])
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_path = os.path.join(os.path.abspath(AUDIO_FOLDER),
+                                f"rankings_{timestamp}.txt")
+
+        lines = [
+            "=" * 60,
+            "PITCH PERCEPTION RANKINGS",
+            datetime.now().strftime("%B %d, %Y  %I:%M %p"),
+            f"Folder: {os.path.abspath(AUDIO_FOLDER)}",
+            f"Files:  {len(self.audio_files)}",
+            "=" * 60, ""
+        ]
+
+        for rank, (path, score) in enumerate(sorted_files, 1):
+            sign = "+" if score > 0 else ""
+            lines.append(f"  {rank:>2}.  [{sign}{int(score):>3}]  {os.path.basename(path)}")
+
+        lines += ["", "=" * 60]
+
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines))
+
+        messagebox.showinfo("Saved", f"Rankings saved to:\n{out_path}")
+
+    # ── CLEAR ─────────────────────────────────────────────────────────────────
+
+    def _clear(self):
+        if not self.audio_files:
+            return
+        if messagebox.askyesno("Clear", "Reset all ratings to 0?"):
+            if self.current_playing is not None:
+                pygame.mixer.music.stop()
+                self.current_playing = None
+            for item in self.audio_files:
+                item[1] = 0
+            self._render()
 
 
-if __name__ == '__main__':
-    api = API()
-    window = webview.create_window(
-        WINDOW_TITLE,
-        html=HTML,
-        width=WINDOW_W,
-        height=WINDOW_H,
-        resizable=True,
-        js_api=api,
-    )
-    webview.start()
+def main():
+    root = tk.Tk()
+    AudioRatingApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
