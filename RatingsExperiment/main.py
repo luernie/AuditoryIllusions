@@ -8,16 +8,16 @@ Run:      python main.py
 import tkinter as tk
 from tkinter import messagebox
 import os
-import csv
 import sys
+import csv
 from datetime import datetime
 
-# Make sure Python can find the other files in this folder
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import get_block_order, RISSET_FOLDER, OUTPUT_FOLDER
 from test_ports import TestPortsWindow
 from rating_ui import RatingWindow
+from flashcard_ui import FlashcardWindow
 
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -65,10 +65,10 @@ def show_setup():
             messagebox.showerror("Invalid", "Please enter a positive integer.")
             return
 
-        state["participant"]    = p
-        state["block_order"]    = get_block_order(p)
-        state["current_block"]  = 0
-        state["all_results"]    = []
+        state["participant"]   = p
+        state["block_order"]   = get_block_order(p)
+        state["current_block"] = 0
+        state["all_results"]   = []
 
         order_str = "\n".join(
             f"  {i+1}. {mod}" for i, mod in enumerate(state["block_order"])
@@ -102,14 +102,14 @@ def run_port_test():
     root.mainloop()
 
 
-# ── STEP 2+: Blocks ───────────────────────────────────────────────────────────
+# ── STEP 2–4: Ranking blocks ──────────────────────────────────────────────────
 
 def run_next_block():
     idx   = state["current_block"]
     total = len(state["block_order"])
 
     if idx >= total:
-        finish()
+        run_flashcards()
         return
 
     modality = state["block_order"][idx]
@@ -132,7 +132,34 @@ def run_next_block():
     root.mainloop()
 
 
-# ── EXPORT ────────────────────────────────────────────────────────────────────
+# ── STEP 5: Break then flashcard phase ───────────────────────────────────────
+
+def run_flashcards():
+    root = tk.Tk()
+    root.title("Break")
+    root.geometry("480x280")
+    root.resizable(False, False)
+
+    from flashcard_ui import show_break_screen
+
+    def on_break_done():
+        def on_complete(results):
+            export_flashcards(results)
+            finish()
+        FlashcardWindow(root, RISSET_FOLDER,
+                        state["audio_device"], state["haptic_device"],
+                        on_complete)
+
+    show_break_screen(
+        root,
+        "Great work — the first part is complete.\n\nTake a short break before continuing.",
+        "Continue →",
+        on_break_done
+    )
+    root.mainloop()
+
+
+# ── EXPORT: ranking block ─────────────────────────────────────────────────────
 
 def export_block(block_result):
     p   = state["participant"]
@@ -155,13 +182,51 @@ def export_block(block_result):
     print(f"Saved: {out_path}")
 
 
+# ── EXPORT: flashcards ────────────────────────────────────────────────────────
+
+def export_flashcards(results):
+    p  = state["participant"]
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Per-trial CSV
+    trial_path = os.path.join(OUTPUT_FOLDER, f"p{p:03d}_flashcards_{ts}.csv")
+    with open(trial_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Participant", "Run", "Filename", "Modality", "Score"])
+        for r in results:
+            writer.writerow([p, r["run"], r["filename"], r["modality"], r["score"]])
+
+    # Averages CSV — one row per (filename, modality) with scores for each run + average
+    from collections import defaultdict
+    grouped = defaultdict(dict)   # grouped[(filename, modality)][run] = score
+    for r in results:
+        grouped[(r["filename"], r["modality"])][r["run"]] = r["score"]
+
+    avg_path = os.path.join(OUTPUT_FOLDER, f"p{p:03d}_flashcards_averages_{ts}.csv")
+    with open(avg_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Participant", "Filename", "Modality",
+                         "Score_Run1", "Score_Run2", "Score_Run3", "Average"])
+        for (fname, mod), runs in sorted(grouped.items()):
+            s1 = runs.get(1, "")
+            s2 = runs.get(2, "")
+            s3 = runs.get(3, "")
+            scores = [s for s in [s1, s2, s3] if s != ""]
+            avg = round(sum(scores) / len(scores), 3) if scores else ""
+            writer.writerow([p, fname, mod, s1, s2, s3, avg])
+
+    print(f"Saved: {trial_path}")
+    print(f"Saved: {avg_path}")
+
+
 # ── FINISH ────────────────────────────────────────────────────────────────────
 
 def finish():
     p  = state["participant"]
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_path = os.path.join(OUTPUT_FOLDER, f"p{p:03d}_summary_{ts}.csv")
 
+    # Combined ranking summary
+    out_path = os.path.join(OUTPUT_FOLDER, f"p{p:03d}_ranking_summary_{ts}.csv")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Participant", "Block", "Stimulus", "Modality",
@@ -176,7 +241,7 @@ def finish():
     root.withdraw()
     messagebox.showinfo(
         "All done!",
-        f"All 3 blocks complete for participant {p}.\n\nSummary saved to:\n{out_path}"
+        f"Experiment complete for participant {p}.\n\nResults saved to:\n{OUTPUT_FOLDER}"
     )
     root.destroy()
 
