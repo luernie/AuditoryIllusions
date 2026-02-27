@@ -1,67 +1,77 @@
 """
-test_ports.py — audio device tester (tkinter UI)
-Lists all output devices and plays a test tone through each one.
-Returns the chosen device IDs to the caller.
+test_ports.py — audio device tester
+Uses subprocess to play tones safely without crashing Windows audio drivers.
 """
 
 import tkinter as tk
 from tkinter import messagebox
-import sounddevice as sd
+import sys
+import os
+import subprocess
+
+TONE_SCRIPT = """
+import sys, os, time
 import numpy as np
-import threading
+
+device_id = int(sys.argv[1])
+
+os.environ['SDL_AUDIODEVICE'] = str(device_id)
+
+import pygame
+pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
+pygame.mixer.init()
+
+# Generate a 440Hz tone as a WAV in memory
+duration = 1.5
+sr = 44100
+t = np.linspace(0, duration, int(sr * duration), endpoint=False)
+tone = (0.4 * np.sin(2 * np.pi * 440 * t) * 32767).astype(np.int16)
+stereo = np.column_stack([tone, tone])
+
+sound = pygame.sndarray.make_sound(stereo)
+sound.play()
+time.sleep(duration + 0.2)
+pygame.mixer.quit()
+"""
 
 
-def play_tone(device_id, frequency=440, duration=1.5):
-    try:
-        info = sd.query_devices(device_id)
-        sr = int(info['default_samplerate'])
-        ch = min(info['max_output_channels'], 2)
-        t = np.linspace(0, duration, int(sr * duration), endpoint=False)
-        tone = 0.4 * np.sin(2 * np.pi * frequency * t)
-        if ch == 2:
-            tone = np.column_stack([tone, tone])
-        sd.play(tone, sr, device=device_id)
-        sd.wait()
-    except Exception:
-        pass
+def _write_tone_script():
+    here = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(here, "_tone.py")
+    if not os.path.exists(path):
+        with open(path, "w") as f:
+            f.write(TONE_SCRIPT)
+    return path
 
 
 class TestPortsWindow:
-    """
-    Shows all output devices. User can play a tone on each.
-    Then they enter which device is 'audio' (headphones) and which is 'haptic'.
-    Calls on_done(audio_id, haptic_id) when confirmed.
-    """
-
     def __init__(self, root, on_done):
-        self.root = root
+        self.root    = root
         self.on_done = on_done
         self.root.title("Step 1 — Test Audio Ports")
         self.root.geometry("700x560")
         self.root.resizable(True, True)
         self.root.configure(bg="#f5f5f5")
+        self._tone_script = _write_tone_script()
         self._build()
 
     def _build(self):
         tk.Label(self.root, text="Step 1: Test Audio Ports",
                  bg="#f5f5f5", font=("Arial", 16, "bold")).pack(pady=(20, 4), padx=24, anchor="w")
-
         tk.Label(self.root,
-                 text="Play a tone on each device below to identify which is your headphone output\n"
-                      "and which is your haptic device. Then enter the device IDs at the bottom.",
+                 text="Play a tone on each device to identify your headphone and haptic outputs.\n"
+                      "Then enter the two device IDs at the bottom and click Confirm.",
                  bg="#f5f5f5", fg="#555", font=("Arial", 10),
                  justify="left").pack(padx=24, anchor="w")
 
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=24, pady=12)
 
-        # Device list
         wrap = tk.Frame(self.root, bg="#f5f5f5")
         wrap.pack(fill=tk.BOTH, expand=True, padx=24)
 
         canvas = tk.Canvas(wrap, bg="#f5f5f5", highlightthickness=0)
         sb = tk.Scrollbar(wrap, orient="vertical", command=canvas.yview)
         inner = tk.Frame(canvas, bg="#f5f5f5")
-
         inner.bind("<Configure>", lambda e: canvas.configure(
             scrollregion=canvas.bbox("all")))
         cwin = canvas.create_window((0, 0), window=inner, anchor="nw")
@@ -69,29 +79,30 @@ class TestPortsWindow:
         canvas.bind("<Configure>", lambda e: canvas.itemconfig(cwin, width=e.width))
         canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(
             -1 if (e.delta > 0 or e.num == 4) else 1, "units"))
-
         canvas.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
 
-        devices = [(i, d) for i, d in enumerate(sd.query_devices())
-                   if d['max_output_channels'] > 0]
+        # List output devices using sounddevice just for querying (no playback)
+        try:
+            import sounddevice as sd
+            devices = [(i, d) for i, d in enumerate(sd.query_devices())
+                       if d['max_output_channels'] > 0]
+        except Exception:
+            devices = []
 
         for dev_id, dev in devices:
             row = tk.Frame(inner, bg="white",
                            highlightbackground="#ddd", highlightthickness=1)
             row.pack(fill=tk.X, pady=3)
-
             ri = tk.Frame(row, bg="white")
             ri.pack(fill=tk.X, padx=12, pady=8)
 
             tk.Label(ri, text=f"[{dev_id}]", bg="white", fg="#888",
                      font=("Courier", 10), width=5, anchor="w").pack(side=tk.LEFT)
-
             tk.Label(ri, text=dev['name'], bg="white", fg="#222",
                      font=("Arial", 10), anchor="w").pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-            status = tk.Label(ri, text="", bg="white", fg="#27ae60",
-                              font=("Arial", 9))
+            status = tk.Label(ri, text="", bg="white", fg="#27ae60", font=("Arial", 9))
             status.pack(side=tk.LEFT, padx=(8, 0))
 
             tk.Button(ri, text="Play Tone", font=("Arial", 9),
@@ -100,7 +111,6 @@ class TestPortsWindow:
                       command=lambda d=dev_id, s=status: self._play(d, s)
                       ).pack(side=tk.RIGHT)
 
-        # Device ID entry
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=24, pady=(12, 0))
 
         entry_frame = tk.Frame(self.root, bg="#f5f5f5")
@@ -126,10 +136,13 @@ class TestPortsWindow:
 
     def _play(self, device_id, status_label):
         status_label.config(text="playing...")
-        def run():
-            play_tone(device_id)
-            status_label.config(text="done")
-        threading.Thread(target=run, daemon=True).start()
+        self.root.update()
+        subprocess.Popen(
+            [sys.executable, self._tone_script, str(device_id)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        self.root.after(2000, lambda: status_label.config(text="done"))
 
     def _confirm(self):
         try:

@@ -3,8 +3,8 @@ config.py — shared settings for the experiment
 """
 
 # ── FOLDERS ───────────────────────────────────────────────────────────────────
-RISSET_FOLDER  = "./audio/risset"   # folder of risset rhythm audio files
-OUTPUT_FOLDER  = "./results"        # where CSV exports are saved
+RISSET_FOLDER  = "AudioRatingRR"   # folder of risset rhythm audio files
+OUTPUT_FOLDER  = "data"        # where CSV exports are saved
 
 # ── LATIN SQUARE ──────────────────────────────────────────────────────────────
 # 6 orderings of the 3 modalities (all permutations)
