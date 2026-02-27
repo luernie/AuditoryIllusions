@@ -1,6 +1,6 @@
 """
 test_ports.py — audio device tester
-Uses subprocess to play tones safely without crashing Windows audio drivers.
+Uses subprocess + sounddevice for safe per-device tone playback on Windows.
 """
 
 import tkinter as tk
@@ -9,39 +9,8 @@ import sys
 import os
 import subprocess
 
-TONE_SCRIPT = """
-import sys, os, time
-import numpy as np
-
-device_id = int(sys.argv[1])
-
-os.environ['SDL_AUDIODEVICE'] = str(device_id)
-
-import pygame
-pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
-pygame.mixer.init()
-
-# Generate a 440Hz tone as a WAV in memory
-duration = 1.5
-sr = 44100
-t = np.linspace(0, duration, int(sr * duration), endpoint=False)
-tone = (0.4 * np.sin(2 * np.pi * 440 * t) * 32767).astype(np.int16)
-stereo = np.column_stack([tone, tone])
-
-sound = pygame.sndarray.make_sound(stereo)
-sound.play()
-time.sleep(duration + 0.2)
-pygame.mixer.quit()
-"""
-
-
-def _write_tone_script():
-    here = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(here, "_tone.py")
-    if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write(TONE_SCRIPT)
-    return path
+HERE        = os.path.dirname(os.path.abspath(__file__))
+TONE_SCRIPT = os.path.join(HERE, "_tone.py")
 
 
 class TestPortsWindow:
@@ -52,7 +21,6 @@ class TestPortsWindow:
         self.root.geometry("700x560")
         self.root.resizable(True, True)
         self.root.configure(bg="#f5f5f5")
-        self._tone_script = _write_tone_script()
         self._build()
 
     def _build(self):
@@ -82,7 +50,6 @@ class TestPortsWindow:
         canvas.pack(side="left", fill="both", expand=True)
         sb.pack(side="right", fill="y")
 
-        # List output devices using sounddevice just for querying (no playback)
         try:
             import sounddevice as sd
             devices = [(i, d) for i, d in enumerate(sd.query_devices())
@@ -138,7 +105,7 @@ class TestPortsWindow:
         status_label.config(text="playing...")
         self.root.update()
         subprocess.Popen(
-            [sys.executable, self._tone_script, str(device_id)],
+            [sys.executable, TONE_SCRIPT, str(device_id)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

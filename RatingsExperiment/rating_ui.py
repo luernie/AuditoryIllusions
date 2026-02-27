@@ -1,6 +1,6 @@
 """
 rating_ui.py — rating screen for one block
-Playback uses pygame only (no sounddevice) for Windows stability.
+Playback uses sounddevice via subprocess for proper per-device routing on Windows.
 """
 
 import tkinter as tk
@@ -8,7 +8,7 @@ from tkinter import messagebox
 import os
 import sys
 import subprocess
-import pygame
+import random
 
 AUDIO_EXTENSIONS = ('.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac')
 
@@ -26,35 +26,8 @@ INSTRUCTIONS = (
     "When you have rated all samples, press Save & Continue."
 )
 
-# ── Subprocess player script (written to a temp file and called per play) ─────
-# This runs in a completely separate process so it can't crash the main app.
-PLAYER_SCRIPT = """
-import sys, pygame, time
-device_id = int(sys.argv[1])
-filepath  = sys.argv[2]
-
-# Point pygame at the specific device via SDL env var
-import os
-os.environ['SDL_AUDIODEVICE'] = str(device_id)
-
-pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
-pygame.mixer.init()
-pygame.mixer.music.load(filepath)
-pygame.mixer.music.play()
-while pygame.mixer.music.get_busy():
-    time.sleep(0.1)
-pygame.mixer.quit()
-"""
-
-
-def _write_player_script():
-    """Write the player helper script next to this file."""
-    here = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(here, "_player.py")
-    if not os.path.exists(path):
-        with open(path, "w") as f:
-            f.write(PLAYER_SCRIPT)
-    return path
+HERE = os.path.dirname(os.path.abspath(__file__))
+PLAYER_SCRIPT = os.path.join(HERE, "_player.py")
 
 
 class RatingWindow:
@@ -72,13 +45,8 @@ class RatingWindow:
         self.current_playing = None
         self.rows            = []
         self._sort_job       = None
-        self._procs          = []   # active subprocesses
+        self._procs          = []
 
-        # Init pygame for main process too (used as fallback)
-        pygame.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=2048)
-        pygame.mixer.init()
-
-        self._player_script = _write_player_script()
         self._build_ui()
         self._load_files()
 
@@ -153,6 +121,7 @@ class RatingWindow:
         if not files:
             messagebox.showwarning("No audio", f"No audio files found in:\n{folder}")
             return
+        random.shuffle(files)
         self.audio_files = [[f, 0.0] for f in files]
         self._build_rows()
         self._update_progress()
@@ -227,16 +196,13 @@ class RatingWindow:
     def _toggle_play(self, index):
         filepath = self.audio_files[index][0]
 
-        # Stop whatever is playing
         self._stop_all()
 
         if self.current_playing == index:
-            # Was already playing this one — just stop
             self._set_icon(index, False)
             self.current_playing = None
             return
 
-        # Start playing on correct device(s)
         try:
             if self.modality == "audio":
                 self._launch(self.audio_device, filepath)
@@ -254,9 +220,8 @@ class RatingWindow:
             messagebox.showerror("Playback error", str(e))
 
     def _launch(self, device_id, filepath):
-        """Launch a separate Python process to play audio on one device."""
         proc = subprocess.Popen(
-            [sys.executable, self._player_script, str(device_id), filepath],
+            [sys.executable, PLAYER_SCRIPT, str(device_id), filepath],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -279,9 +244,7 @@ class RatingWindow:
                 break
 
     def _check_end(self, index):
-        # Clean up finished procs
         self._procs = [p for p in self._procs if p.poll() is None]
-
         if not self._procs and self.current_playing == index:
             self._set_icon(index, False)
             self.current_playing = None
