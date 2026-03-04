@@ -1,0 +1,10 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+1,2,risset,haptic,1,rissettrhythm.mp3,0.0
+1,2,risset,haptic,2,ramp_90to60BPM_8s_700Hz.mp3,0.0
+1,2,risset,haptic,3,ramp_90to120BPM_8s_700Hz.mp3,0.0
+1,2,risset,haptic,4,ramp_90to90BPM_8s_700Hz.mp3,0.0
+1,2,risset,haptic,5,ramp_90to70BPM_8s_700Hz.mp3,0.0
+1,2,risset,haptic,6,rissettrhythm reverse.mp3,0.0
+1,2,risset,haptic,7,rissettrhythm reverse-1.5.mp3,0.0
+1,2,risset,haptic,8,rissettrhythm-1.5.mp3,0.0
+1,2,risset,haptic,9,ramp_90to110BPM_8s_700Hz.mp3,0.0

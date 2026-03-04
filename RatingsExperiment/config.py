@@ -4,7 +4,7 @@ config.py — shared settings
 MODE: set to "trial" for participants, "dev" to see all debug info
 """
 
-MODE = "trial"   # <-- change to "trial" when running with participants
+MODE = "dev"   # <-- change to "trial" when running with participants
 
 # ── FOLDERS ───────────────────────────────────────────────────────────────────
 RISSET_FOLDER  = "AudioRatingRR"
@@ -34,6 +34,8 @@ EXPERIMENTS = {
             "Listen to each audio sample and rate how you perceive the tempo using the slider:\n"
             "  -10 = strongly slowing down          +10 = strongly speeding up\n"
             "     0 = no clear change in tempo\n\n"
+            "For haptic-only trials, white noise will play through the headphones\n"
+            "to mask any incidental sound from the haptic device.\n\n"
             "You can replay a sample as many times as you like before rating it.\n"
             "When you have rated all samples, press Save & Continue."
         ),
@@ -57,6 +59,8 @@ EXPERIMENTS = {
             "Listen to each audio sample and rate how you perceive the pitch using the slider:\n"
             "  -10 = strongly decreasing pitch       +10 = strongly increasing pitch\n"
             "     0 = no clear change in pitch\n\n"
+            "For haptic-only trials, white noise will play through the headphones\n"
+            "to mask any incidental sound from the haptic device.\n\n"
             "You can replay a sample as many times as you like before rating it.\n"
             "When you have rated all samples, press Save & Continue."
         ),

@@ -14,12 +14,15 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import get_block_order, OUTPUT_FOLDER, EXPERIMENTS, get_exp_config
+from config import get_block_order, OUTPUT_FOLDER, EXPERIMENTS, get_exp_config, MODE
 from test_ports import TestPortsWindow
 from rating_ui import RatingWindow
 from flashcard_ui import FlashcardWindow, show_break_screen
 
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+def _prefix():
+    return "DEV_" if MODE == "dev" else ""
 
 state = {
     "participant":   None,
@@ -189,7 +192,7 @@ def export_block(block_result):
     stimulus = block_result["stimulus"]
 
     out_path = os.path.join(OUTPUT_FOLDER,
-        f"p{p:03d}_block{block_result['block']:02d}_{stimulus}_{mod}_{ts}.csv")
+        f"{_prefix()}p{p:03d}_block{block_result['block']:02d}_{stimulus}_{mod}_{ts}.csv")
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -211,7 +214,7 @@ def export_flashcards(results):
     stimulus = state["exp_key"]
 
     trial_path = os.path.join(OUTPUT_FOLDER,
-                              f"p{p:03d}_{stimulus}_flashcards_{ts}.csv")
+                              f"{_prefix()}p{p:03d}_{stimulus}_flashcards_{ts}.csv")
     with open(trial_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Participant", "Stimulus", "Run", "Filename", "Modality", "Score"])
@@ -223,7 +226,7 @@ def export_flashcards(results):
         grouped[(r["filename"], r["modality"])][r["run"]] = r["score"]
 
     avg_path = os.path.join(OUTPUT_FOLDER,
-                            f"p{p:03d}_{stimulus}_flashcards_averages_{ts}.csv")
+                            f"{_prefix()}p{p:03d}_{stimulus}_flashcards_averages_{ts}.csv")
     with open(avg_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Participant", "Stimulus", "Filename", "Modality",
@@ -248,7 +251,7 @@ def finish():
     stimulus = state["exp_key"]
 
     out_path = os.path.join(OUTPUT_FOLDER,
-                            f"p{p:03d}_{stimulus}_ranking_summary_{ts}.csv")
+                            f"{_prefix()}p{p:03d}_{stimulus}_ranking_summary_{ts}.csv")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Participant", "Block", "Stimulus", "Modality",

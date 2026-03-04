@@ -19,6 +19,7 @@ MODALITY_LABEL = {
 
 HERE          = os.path.dirname(os.path.abspath(__file__))
 PLAYER_SCRIPT = os.path.join(HERE, "_player.py")
+NOISE_SCRIPT  = os.path.join(HERE, "_noise.py")
 
 
 class RatingWindow:
@@ -144,14 +145,15 @@ class RatingWindow:
                  font=("Arial", 8)).pack(side=tk.LEFT)
         slider = tk.Scale(slider_frame, from_=-10.0, to=10.0, resolution=0.1,
                           orient=tk.HORIZONTAL, showvalue=0, bg="white",
-                          troughcolor="#e0e0e0", highlightthickness=0, bd=0,
+                          troughcolor="#e8e8e8", highlightthickness=0, bd=0,
+                          state=tk.DISABLED,
                           command=lambda val, i=index: self._on_slide(i, val))
         slider.set(0.0)
         slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=4)
         tk.Label(slider_frame, text="+10", bg="white", fg="#999",
                  font=("Arial", 8)).pack(side=tk.LEFT)
 
-        score_lbl = tk.Label(inner, text="0.0", bg="white", fg="#aaa",
+        score_lbl = tk.Label(inner, text="0.0", bg="white", fg="#ddd",
                               font=("Arial", 12, "bold"), width=6, anchor="e")
         score_lbl.grid(row=0, column=3, padx=(10, 0))
 
@@ -162,6 +164,7 @@ class RatingWindow:
         row._play_btn  = play_btn
         row._score_lbl = score_lbl
         row._slider    = slider
+        row._played    = False
         return row
 
     def _resort(self):
@@ -183,12 +186,20 @@ class RatingWindow:
                 self._launch(self.audio_device, filepath)
             elif self.modality == "haptic":
                 self._launch(self.haptic_device, filepath)
+                self._launch_noise(self.audio_device, filepath)
             elif self.modality == "both":
                 self._launch(self.audio_device,  filepath)
                 self._launch(self.haptic_device, filepath)
             self._set_icon(index, True)
             self.current_playing = index
             self.root.after(200, lambda: self._check_end(index))
+            # Unlock slider on first play
+            for row in self.rows:
+                if row._index == index and not row._played:
+                    row._played = True
+                    row._slider.config(state=tk.NORMAL, troughcolor="#e0e0e0")
+                    row._score_lbl.config(fg="#222")
+                    break
         except Exception as e:
             messagebox.showerror("Playback error", str(e))
 
@@ -196,6 +207,21 @@ class RatingWindow:
         proc = subprocess.Popen(
             [sys.executable, PLAYER_SCRIPT, str(device_id), filepath],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._procs.append(proc)
+
+    def _launch_noise(self, device_id, filepath):
+        """Play white noise on the headphone device for the duration of the file."""
+        import soundfile as sf
+        try:
+            info = sf.info(filepath)
+            duration = info.duration
+        except Exception:
+            duration = 10.0
+        import os
+        log = open(os.path.join(HERE, '_noise_error.log'), 'a')
+        proc = subprocess.Popen(
+            [sys.executable, NOISE_SCRIPT, str(device_id), str(duration)],
+            stdout=subprocess.DEVNULL, stderr=log)
         self._procs.append(proc)
 
     def _stop_all(self):

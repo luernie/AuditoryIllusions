@@ -20,6 +20,7 @@ MODALITY_LABEL = {
 
 HERE          = os.path.dirname(os.path.abspath(__file__))
 PLAYER_SCRIPT = os.path.join(HERE, "_player.py")
+NOISE_SCRIPT  = os.path.join(HERE, "_noise.py")
 
 NUM_RUNS = 3
 
@@ -146,14 +147,15 @@ class FlashcardWindow:
                  font=("Arial", 8)).pack(side=tk.LEFT)
         self.slider = tk.Scale(slider_row, from_=-10.0, to=10.0, resolution=0.1,
                                orient=tk.HORIZONTAL, showvalue=0, bg="white",
-                               troughcolor="#e0e0e0", highlightthickness=0, bd=0,
+                               troughcolor="#e8e8e8", highlightthickness=0, bd=0,
+                               state=tk.DISABLED,
                                command=self._on_slide)
         self.slider.set(0.0)
         self.slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=6)
         tk.Label(slider_row, text="+10", bg="white", fg="#999",
                  font=("Arial", 8)).pack(side=tk.LEFT)
 
-        self.score_lbl = tk.Label(ci, text="0.0", bg="white", fg="#aaa",
+        self.score_lbl = tk.Label(ci, text="0.0", bg="white", fg="#ddd",
                                    font=("Arial", 12, "bold"))
         self.score_lbl.pack(anchor="e", pady=(6, 0))
 
@@ -165,10 +167,11 @@ class FlashcardWindow:
                                      fg="#aaa", font=("Arial", 9))
         self.progress_lbl.pack(side=tk.LEFT)
 
-        self.next_btn = tk.Button(footer, text="Next →",
-                                  font=("Arial", 11, "bold"), bg="#333", fg="white",
+        self.next_btn = tk.Button(footer, text="Submit 0.0",
+                                  font=("Arial", 11, "bold"), bg="#ccc", fg="white",
                                   relief=tk.FLAT, padx=18, pady=7,
-                                  activebackground="#555", cursor="hand2",
+                                  activebackground="#ccc", cursor="arrow",
+                                  state=tk.DISABLED,
                                   command=self._next)
         self.next_btn.pack(side=tk.RIGHT)
 
@@ -176,7 +179,11 @@ class FlashcardWindow:
         self._stop_all()
         self._score = 0.0
         self.slider.set(0.0)
-        self.score_lbl.config(text="0.0", fg="#aaa")
+        self.slider.config(state=tk.DISABLED, troughcolor="#e8e8e8")
+        self.score_lbl.config(text="0.0", fg="#ddd")
+        self.next_btn.config(text="Submit 0.0", bg="#ccc",
+                             activebackground="#ccc", cursor="arrow",
+                             state=tk.DISABLED)
         self.play_btn.config(text="▶  Play", fg="#333")
         run, filename, filepath, modality = self._current_run_cards[self._card_idx]
         self._current_filepath = filepath
@@ -208,6 +215,14 @@ class FlashcardWindow:
         v = self._score
         color = "#c0392b" if v < 0 else "#27ae60" if v > 0 else "#aaa"
         self.score_lbl.config(text=f"{v:+.1f}" if v != 0 else "0.0", fg=color)
+        self._update_next_btn()
+
+    def _update_next_btn(self):
+        v = self._score
+        label = f"Submit {v:+.1f}" if v != 0 else "Submit 0.0"
+        self.next_btn.config(text=label, bg="#333", fg="white",
+                             activebackground="#555", cursor="hand2",
+                             state=tk.NORMAL)
 
     def _play(self):
         self._stop_all()
@@ -216,11 +231,16 @@ class FlashcardWindow:
                 self._launch(self.audio_device,  self._current_filepath)
             elif self._current_modality == "haptic":
                 self._launch(self.haptic_device, self._current_filepath)
+                self._launch_noise(self.audio_device, self._current_filepath)
             elif self._current_modality == "both":
                 self._launch(self.audio_device,  self._current_filepath)
                 self._launch(self.haptic_device, self._current_filepath)
             self.play_btn.config(text="■  Playing", fg="#555")
             self.root.after(200, self._check_end)
+            # Unlock slider and submit on first play
+            self.slider.config(state=tk.NORMAL, troughcolor="#e0e0e0")
+            self.score_lbl.config(fg="#222")
+            self._update_next_btn()
         except Exception as e:
             messagebox.showerror("Playback error", str(e))
 
@@ -228,6 +248,20 @@ class FlashcardWindow:
         proc = subprocess.Popen(
             [sys.executable, PLAYER_SCRIPT, str(device_id), filepath],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self._procs.append(proc)
+
+    def _launch_noise(self, device_id, filepath):
+        import soundfile as sf
+        try:
+            info = sf.info(filepath)
+            duration = info.duration
+        except Exception:
+            duration = 10.0
+        import os
+        log = open(os.path.join(HERE, '_noise_error.log'), 'a')
+        proc = subprocess.Popen(
+            [sys.executable, NOISE_SCRIPT, str(device_id), str(duration)],
+            stdout=subprocess.DEVNULL, stderr=log)
         self._procs.append(proc)
 
     def _stop_all(self):
