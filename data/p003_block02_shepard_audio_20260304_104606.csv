@@ -1,0 +1,14 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+3,2,shepard,audio,1,shepard_falling_2.0.mp3,-6.4
+3,2,shepard,audio,2,shepard_falling_1.0.mp3,-4.5
+3,2,shepard,audio,3,pitch_440to220_8s.mp3,-2.8
+3,2,shepard,audio,4,shepard_falling_1.5.mp3,-2.3
+3,2,shepard,audio,5,pitch_220to156_8s.mp3,-2.2
+3,2,shepard,audio,6,pitch_880to220_8s.mp3,-1.5
+3,2,shepard,audio,7,pitch_220to220_8s.mp3,-1.0
+3,2,shepard,audio,8,shepard_rising_1.0.mp3,1.7
+3,2,shepard,audio,9,pitch_110to220_8s.mp3,2.5
+3,2,shepard,audio,10,pitch_110to156_8s.mp3,3.9
+3,2,shepard,audio,11,shepard_rising_1.5.mp3,5.9
+3,2,shepard,audio,12,pitch_110to440_8s.mp3,7.3
+3,2,shepard,audio,13,shepard_rising_2.0.mp3,8.9

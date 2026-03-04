@@ -1,0 +1,14 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+3,1,shepard,haptic,1,pitch_440to220_8s.mp3,-5.4
+3,1,shepard,haptic,2,pitch_880to220_8s.mp3,-5.3
+3,1,shepard,haptic,3,shepard_falling_1.5.mp3,-4.0
+3,1,shepard,haptic,4,pitch_110to220_8s.mp3,-2.6
+3,1,shepard,haptic,5,shepard_falling_2.0.mp3,-2.4
+3,1,shepard,haptic,6,shepard_falling_1.0.mp3,-1.2
+3,1,shepard,haptic,7,pitch_110to156_8s.mp3,-1.2
+3,1,shepard,haptic,8,pitch_220to156_8s.mp3,-0.3
+3,1,shepard,haptic,9,pitch_220to220_8s.mp3,0.9
+3,1,shepard,haptic,10,shepard_rising_2.0.mp3,3.0
+3,1,shepard,haptic,11,pitch_110to440_8s.mp3,4.9
+3,1,shepard,haptic,12,shepard_rising_1.0.mp3,6.9
+3,1,shepard,haptic,13,shepard_rising_1.5.mp3,8.6

@@ -1,6 +1,5 @@
 """
-rating_ui.py — rating screen for one block
-Playback uses sounddevice via subprocess for proper per-device routing on Windows.
+rating_ui.py — ranking screen for one block
 """
 
 import tkinter as tk
@@ -18,25 +17,16 @@ MODALITY_LABEL = {
     "both":   "Audio + Haptic",
 }
 
-INSTRUCTIONS = (
-    "Listen to each audio sample and rate how you perceive the tempo using the slider:\n"
-    "  -10 = strongly slowing down          +10 = strongly speeding up\n"
-    "     0 = no clear change in tempo\n\n"
-    "You can replay a sample as many times as you like before rating it.\n"
-    "When you have rated all samples, press Save & Continue."
-)
-
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE          = os.path.dirname(os.path.abspath(__file__))
 PLAYER_SCRIPT = os.path.join(HERE, "_player.py")
 
 
 class RatingWindow:
-    def __init__(self, root, stimulus, modality, folder,
-                 audio_device, haptic_device, on_complete):
+    def __init__(self, root, exp_config, modality, audio_device, haptic_device, on_complete):
         self.root          = root
-        self.stimulus      = stimulus
+        self.exp_config    = exp_config
         self.modality      = modality
-        self.folder        = folder
+        self.folder        = exp_config["folder"]
         self.audio_device  = audio_device
         self.haptic_device = haptic_device
         self.on_complete   = on_complete
@@ -50,12 +40,10 @@ class RatingWindow:
         self._build_ui()
         self._load_files()
 
-    # ── UI ────────────────────────────────────────────────────────────────────
-
     def _build_ui(self):
         mod_label = MODALITY_LABEL[self.modality]
-        self.root.title(f"Risset Rhythm — {mod_label}")
-        self.root.geometry("860x660")
+        self.root.title(f"{self.exp_config['ui_title']} — {mod_label}")
+        self.root.state("zoomed")
         self.root.resizable(True, True)
         self.root.configure(bg="#f5f5f5")
 
@@ -64,12 +52,13 @@ class RatingWindow:
         banner.pack(fill=tk.X, padx=20, pady=(16, 0))
         bi = tk.Frame(banner, bg="#f0f0f0")
         bi.pack(fill=tk.X, padx=16, pady=12)
-        tk.Label(bi, text="Risset Rhythm — Tempo Perception",
+        tk.Label(bi, text=self.exp_config["ui_title"],
                  bg="#f0f0f0", font=("Arial", 13, "bold")).pack(anchor="w")
-        tk.Label(bi, text=f"Condition: {mod_label}",
-                 bg="#f0f0f0", fg="#555", font=("Arial", 10)).pack(anchor="w", pady=(2, 6))
-        tk.Label(bi, text=INSTRUCTIONS, bg="#f0f0f0", fg="#333",
-                 font=("Arial", 9), justify="left").pack(anchor="w")
+        if self.exp_config.get("show_condition", True):
+            tk.Label(bi, text=f"Condition: {mod_label}",
+                     bg="#f0f0f0", fg="#555", font=("Arial", 10)).pack(anchor="w", pady=(2, 6))
+        tk.Label(bi, text=self.exp_config["instructions"],
+                 bg="#f0f0f0", fg="#333", font=("Arial", 9), justify="left").pack(anchor="w")
 
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=10)
 
@@ -110,8 +99,6 @@ class RatingWindow:
         else:
             self.canvas.yview_scroll(-1, "units")
 
-    # ── LOAD ──────────────────────────────────────────────────────────────────
-
     def _load_files(self):
         folder = os.path.abspath(self.folder)
         files = sorted([
@@ -125,8 +112,6 @@ class RatingWindow:
         self.audio_files = [[f, 0.0] for f in files]
         self._build_rows()
         self._update_progress()
-
-    # ── ROWS ──────────────────────────────────────────────────────────────────
 
     def _build_rows(self):
         for w in self.inner.winfo_children():
@@ -147,25 +132,20 @@ class RatingWindow:
                             fg="#aaa", font=("Arial", 11), width=3, anchor="e")
         rank_lbl.grid(row=0, column=0, padx=(0, 10))
 
-        play_btn = tk.Button(
-            inner, text="▶", bg="white", fg="#333",
-            font=("Arial", 11), width=2, relief=tk.FLAT,
-            activebackground="#eee", cursor="hand2",
-            command=lambda i=index: self._toggle_play(i)
-        )
+        play_btn = tk.Button(inner, text="▶", bg="white", fg="#333",
+                             font=("Arial", 11), width=2, relief=tk.FLAT,
+                             activebackground="#eee", cursor="hand2",
+                             command=lambda i=index: self._toggle_play(i))
         play_btn.grid(row=0, column=1, padx=(0, 16))
 
         slider_frame = tk.Frame(inner, bg="white")
         slider_frame.grid(row=0, column=2, sticky="ew")
         tk.Label(slider_frame, text="-10", bg="white", fg="#999",
                  font=("Arial", 8)).pack(side=tk.LEFT)
-        slider = tk.Scale(
-            slider_frame, from_=-10.0, to=10.0, resolution=0.1,
-            orient=tk.HORIZONTAL, showvalue=0,
-            bg="white", troughcolor="#e0e0e0",
-            highlightthickness=0, bd=0,
-            command=lambda val, i=index: self._on_slide(i, val)
-        )
+        slider = tk.Scale(slider_frame, from_=-10.0, to=10.0, resolution=0.1,
+                          orient=tk.HORIZONTAL, showvalue=0, bg="white",
+                          troughcolor="#e0e0e0", highlightthickness=0, bd=0,
+                          command=lambda val, i=index: self._on_slide(i, val))
         slider.set(0.0)
         slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=4)
         tk.Label(slider_frame, text="+10", bg="white", fg="#999",
@@ -191,18 +171,13 @@ class RatingWindow:
             row.pack(fill=tk.X, pady=3)
             row._rank_lbl.config(text=str(i + 1))
 
-    # ── PLAYBACK ──────────────────────────────────────────────────────────────
-
     def _toggle_play(self, index):
         filepath = self.audio_files[index][0]
-
         self._stop_all()
-
         if self.current_playing == index:
             self._set_icon(index, False)
             self.current_playing = None
             return
-
         try:
             if self.modality == "audio":
                 self._launch(self.audio_device, filepath)
@@ -211,26 +186,23 @@ class RatingWindow:
             elif self.modality == "both":
                 self._launch(self.audio_device,  filepath)
                 self._launch(self.haptic_device, filepath)
-
             self._set_icon(index, True)
             self.current_playing = index
             self.root.after(200, lambda: self._check_end(index))
-
         except Exception as e:
             messagebox.showerror("Playback error", str(e))
 
     def _launch(self, device_id, filepath):
         proc = subprocess.Popen(
             [sys.executable, PLAYER_SCRIPT, str(device_id), filepath],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self._procs.append(proc)
 
     def _stop_all(self):
         for proc in self._procs:
             try:
                 proc.terminate()
+                proc.wait(timeout=1)
             except Exception:
                 pass
         self._procs.clear()
@@ -251,37 +223,39 @@ class RatingWindow:
         elif self.current_playing == index:
             self.root.after(200, lambda: self._check_end(index))
 
-    # ── RATING ────────────────────────────────────────────────────────────────
-
     def _on_slide(self, index, val):
         score = round(float(val), 1)
         self.audio_files[index][1] = score
-
         for row in self.rows:
             if row._index == index:
                 color = "#c0392b" if score < 0 else "#27ae60" if score > 0 else "#aaa"
                 row._score_lbl.config(
-                    text=f"{score:+.1f}" if score != 0 else "0.0",
-                    fg=color
-                )
+                    text=f"{score:+.1f}" if score != 0 else "0.0", fg=color)
                 break
-
         self._update_progress()
-
         if self._sort_job is not None:
             self.root.after_cancel(self._sort_job)
         self._sort_job = self.root.after(500, self._resort)
 
     def _update_progress(self):
+        if not self.exp_config.get("show_progress", True):
+            self.progress_label.config(text="")
+            return
         rated = sum(1 for _, s in self.audio_files if s != 0.0)
         total = len(self.audio_files)
         self.progress_label.config(text=f"{rated} / {total} rated")
 
-    # ── SAVE ──────────────────────────────────────────────────────────────────
-
     def _save_and_continue(self):
         self._stop_all()
         self.current_playing = None
+        # Wait for audio subprocesses to fully release the device
+        import time
+        for _ in range(20):  # up to 2 seconds
+            self._procs = [p for p in self._procs if p.poll() is None]
+            if not self._procs:
+                break
+            time.sleep(0.1)
+        time.sleep(0.3)  # extra buffer for driver release
         ratings = [(os.path.basename(f), s) for f, s in self.audio_files]
         self.root.destroy()
         self.on_complete(ratings)

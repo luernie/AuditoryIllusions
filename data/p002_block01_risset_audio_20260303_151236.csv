@@ -1,0 +1,14 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+2,1,risset,audio,1,ramp_100to60BPM_8s_700Hz.mp3,-2.0
+2,1,risset,audio,2,rissettrhythm reverse.mp3,-1.1
+2,1,risset,audio,3,ramp_90to60BPM_8s_700Hz.mp3,-0.9
+2,1,risset,audio,4,rissettrhythm reverse-2.0.mp3,-0.7
+2,1,risset,audio,5,rissettrhythm reverse-1.5.mp3,-0.4
+2,1,risset,audio,6,ramp_60to80BPM_8s_700Hz.mp3,0.1
+2,1,risset,audio,7,rissettrhythm-2.0.mp3,0.1
+2,1,risset,audio,8,ramp_80to60BPM_8s_700Hz.mp3,0.2
+2,1,risset,audio,9,ramp_60to100BPM_8s_700Hz.mp3,0.4
+2,1,risset,audio,10,rissettrhythm-1.5.mp3,0.6
+2,1,risset,audio,11,ramp_60to60BPM_8s_700Hz.mp3,0.9
+2,1,risset,audio,12,ramp_60to90BPM_8s_700Hz.mp3,1.1
+2,1,risset,audio,13,rissettrhythm.mp3,1.1

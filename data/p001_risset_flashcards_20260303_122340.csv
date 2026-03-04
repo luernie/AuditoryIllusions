@@ -1,0 +1,118 @@
+Participant,Stimulus,Run,Filename,Modality,Score
+1,risset,1,rissettrhythm-2.0.mp3,audio,9.0
+1,risset,1,rissettrhythm reverse-2.0.mp3,both,-5.1
+1,risset,1,rissettrhythm reverse-1.5.mp3,audio,-5.7
+1,risset,1,ramp_60to90BPM_8s_700Hz.mp3,both,4.7
+1,risset,1,ramp_90to60BPM_8s_700Hz.mp3,audio,-4.2
+1,risset,1,ramp_60to60BPM_8s_700Hz.mp3,haptic,0.0
+1,risset,1,ramp_60to80BPM_8s_700Hz.mp3,audio,3.8
+1,risset,1,ramp_60to60BPM_8s_700Hz.mp3,audio,0.0
+1,risset,1,rissettrhythm.mp3,haptic,5.1
+1,risset,1,rissettrhythm reverse-1.5.mp3,both,-7.6
+1,risset,1,ramp_80to60BPM_8s_700Hz.mp3,both,-2.1
+1,risset,1,ramp_80to60BPM_8s_700Hz.mp3,haptic,-4.0
+1,risset,1,ramp_100to60BPM_8s_700Hz.mp3,both,-6.5
+1,risset,1,ramp_60to100BPM_8s_700Hz.mp3,audio,4.2
+1,risset,1,rissettrhythm-1.5.mp3,both,6.9
+1,risset,1,ramp_90to60BPM_8s_700Hz.mp3,haptic,-3.1
+1,risset,1,ramp_60to80BPM_8s_700Hz.mp3,both,3.9
+1,risset,1,rissettrhythm reverse-2.0.mp3,haptic,-3.5
+1,risset,1,rissettrhythm reverse.mp3,both,-4.8
+1,risset,1,rissettrhythm-2.0.mp3,both,8.9
+1,risset,1,rissettrhythm reverse-1.5.mp3,haptic,-5.7
+1,risset,1,rissettrhythm.mp3,both,4.8
+1,risset,1,ramp_60to100BPM_8s_700Hz.mp3,both,6.2
+1,risset,1,ramp_90to60BPM_8s_700Hz.mp3,both,-5.9
+1,risset,1,ramp_60to100BPM_8s_700Hz.mp3,haptic,4.9
+1,risset,1,rissettrhythm reverse-2.0.mp3,audio,-5.8
+1,risset,1,rissettrhythm reverse.mp3,haptic,-5.1
+1,risset,1,rissettrhythm-1.5.mp3,haptic,6.8
+1,risset,1,ramp_80to60BPM_8s_700Hz.mp3,audio,-3.0
+1,risset,1,rissettrhythm-1.5.mp3,audio,7.1
+1,risset,1,ramp_60to60BPM_8s_700Hz.mp3,both,0.0
+1,risset,1,rissettrhythm reverse.mp3,audio,-4.2
+1,risset,1,ramp_100to60BPM_8s_700Hz.mp3,audio,-5.3
+1,risset,1,ramp_60to90BPM_8s_700Hz.mp3,audio,4.7
+1,risset,1,ramp_60to80BPM_8s_700Hz.mp3,haptic,4.8
+1,risset,1,ramp_100to60BPM_8s_700Hz.mp3,haptic,-6.4
+1,risset,1,ramp_60to90BPM_8s_700Hz.mp3,haptic,3.5
+1,risset,1,rissettrhythm.mp3,audio,4.8
+1,risset,1,rissettrhythm-2.0.mp3,haptic,7.1
+1,risset,2,ramp_60to80BPM_8s_700Hz.mp3,audio,3.7
+1,risset,2,ramp_60to80BPM_8s_700Hz.mp3,both,4.1
+1,risset,2,rissettrhythm reverse-2.0.mp3,audio,-6.9
+1,risset,2,ramp_60to60BPM_8s_700Hz.mp3,both,0.0
+1,risset,2,rissettrhythm reverse.mp3,both,-5.8
+1,risset,2,rissettrhythm-1.5.mp3,audio,7.2
+1,risset,2,rissettrhythm.mp3,both,5.4
+1,risset,2,ramp_80to60BPM_8s_700Hz.mp3,haptic,-3.9
+1,risset,2,ramp_100to60BPM_8s_700Hz.mp3,audio,-5.9
+1,risset,2,rissettrhythm reverse-1.5.mp3,audio,-5.3
+1,risset,2,rissettrhythm reverse-2.0.mp3,haptic,-3.4
+1,risset,2,rissettrhythm reverse-1.5.mp3,haptic,-4.8
+1,risset,2,ramp_60to90BPM_8s_700Hz.mp3,both,4.2
+1,risset,2,ramp_60to100BPM_8s_700Hz.mp3,audio,5.9
+1,risset,2,ramp_90to60BPM_8s_700Hz.mp3,audio,-2.9
+1,risset,2,ramp_100to60BPM_8s_700Hz.mp3,haptic,-4.8
+1,risset,2,ramp_80to60BPM_8s_700Hz.mp3,both,-1.7
+1,risset,2,ramp_100to60BPM_8s_700Hz.mp3,both,-5.1
+1,risset,2,rissettrhythm-1.5.mp3,haptic,6.0
+1,risset,2,rissettrhythm reverse.mp3,haptic,-4.4
+1,risset,2,rissettrhythm-1.5.mp3,both,8.5
+1,risset,2,rissettrhythm reverse-1.5.mp3,both,-6.7
+1,risset,2,ramp_60to90BPM_8s_700Hz.mp3,haptic,3.3
+1,risset,2,rissettrhythm reverse-2.0.mp3,both,-7.8
+1,risset,2,ramp_90to60BPM_8s_700Hz.mp3,both,-2.9
+1,risset,2,rissettrhythm.mp3,haptic,5.1
+1,risset,2,ramp_60to90BPM_8s_700Hz.mp3,audio,4.1
+1,risset,2,rissettrhythm-2.0.mp3,both,10.0
+1,risset,2,rissettrhythm reverse.mp3,audio,-4.4
+1,risset,2,rissettrhythm-2.0.mp3,audio,10.0
+1,risset,2,ramp_60to80BPM_8s_700Hz.mp3,haptic,1.0
+1,risset,2,rissettrhythm-2.0.mp3,haptic,6.9
+1,risset,2,ramp_90to60BPM_8s_700Hz.mp3,haptic,-5.2
+1,risset,2,ramp_60to100BPM_8s_700Hz.mp3,both,3.1
+1,risset,2,ramp_60to60BPM_8s_700Hz.mp3,audio,0.0
+1,risset,2,rissettrhythm.mp3,audio,4.0
+1,risset,2,ramp_60to60BPM_8s_700Hz.mp3,haptic,0.0
+1,risset,2,ramp_80to60BPM_8s_700Hz.mp3,audio,-2.6
+1,risset,2,ramp_60to100BPM_8s_700Hz.mp3,haptic,5.3
+1,risset,3,rissettrhythm-1.5.mp3,both,7.2
+1,risset,3,rissettrhythm reverse-1.5.mp3,both,-6.2
+1,risset,3,rissettrhythm-1.5.mp3,haptic,4.8
+1,risset,3,rissettrhythm reverse-2.0.mp3,audio,-7.5
+1,risset,3,ramp_80to60BPM_8s_700Hz.mp3,audio,-2.6
+1,risset,3,ramp_100to60BPM_8s_700Hz.mp3,haptic,-5.0
+1,risset,3,rissettrhythm-2.0.mp3,both,7.9
+1,risset,3,ramp_60to80BPM_8s_700Hz.mp3,both,2.3
+1,risset,3,rissettrhythm.mp3,audio,4.1
+1,risset,3,ramp_60to80BPM_8s_700Hz.mp3,haptic,4.7
+1,risset,3,rissettrhythm.mp3,both,5.3
+1,risset,3,rissettrhythm reverse-2.0.mp3,haptic,-4.4
+1,risset,3,rissettrhythm reverse.mp3,both,-4.5
+1,risset,3,rissettrhythm-2.0.mp3,audio,10.0
+1,risset,3,ramp_100to60BPM_8s_700Hz.mp3,audio,-5.2
+1,risset,3,ramp_90to60BPM_8s_700Hz.mp3,audio,-4.4
+1,risset,3,ramp_60to90BPM_8s_700Hz.mp3,audio,4.7
+1,risset,3,ramp_90to60BPM_8s_700Hz.mp3,both,-3.2
+1,risset,3,rissettrhythm.mp3,haptic,4.6
+1,risset,3,ramp_80to60BPM_8s_700Hz.mp3,both,-2.5
+1,risset,3,ramp_60to100BPM_8s_700Hz.mp3,audio,4.6
+1,risset,3,rissettrhythm reverse-1.5.mp3,haptic,-4.5
+1,risset,3,rissettrhythm reverse-1.5.mp3,audio,-3.9
+1,risset,3,rissettrhythm-2.0.mp3,haptic,6.2
+1,risset,3,ramp_60to90BPM_8s_700Hz.mp3,both,3.4
+1,risset,3,ramp_60to100BPM_8s_700Hz.mp3,haptic,4.6
+1,risset,3,rissettrhythm reverse.mp3,haptic,-2.5
+1,risset,3,rissettrhythm-1.5.mp3,audio,6.3
+1,risset,3,ramp_60to80BPM_8s_700Hz.mp3,audio,3.5
+1,risset,3,rissettrhythm reverse-2.0.mp3,both,-6.8
+1,risset,3,ramp_60to90BPM_8s_700Hz.mp3,haptic,2.5
+1,risset,3,ramp_90to60BPM_8s_700Hz.mp3,haptic,-2.1
+1,risset,3,ramp_100to60BPM_8s_700Hz.mp3,both,-4.3
+1,risset,3,rissettrhythm reverse.mp3,audio,-5.0
+1,risset,3,ramp_60to60BPM_8s_700Hz.mp3,audio,0.0
+1,risset,3,ramp_60to100BPM_8s_700Hz.mp3,both,3.8
+1,risset,3,ramp_80to60BPM_8s_700Hz.mp3,haptic,-3.7
+1,risset,3,ramp_60to60BPM_8s_700Hz.mp3,haptic,0.0
+1,risset,3,ramp_60to60BPM_8s_700Hz.mp3,both,0.0
