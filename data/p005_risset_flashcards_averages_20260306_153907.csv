@@ -1,0 +1,28 @@
+Participant,Stimulus,Filename,Modality,Score_Run1,Score_Run2,Score_Run3,Average
+5,risset,ramp_90to110BPM_8s_700Hz.mp3,audio,2.5,2.0,2.0,2.167
+5,risset,ramp_90to110BPM_8s_700Hz.mp3,both,1.5,2.5,3.0,2.333
+5,risset,ramp_90to110BPM_8s_700Hz.mp3,haptic,3.5,2.5,1.0,2.333
+5,risset,ramp_90to120BPM_8s_700Hz.mp3,audio,3.5,2.5,2.5,2.833
+5,risset,ramp_90to120BPM_8s_700Hz.mp3,both,5.0,2.0,3.5,3.5
+5,risset,ramp_90to120BPM_8s_700Hz.mp3,haptic,4.0,-3.0,1.5,0.833
+5,risset,ramp_90to60BPM_8s_700Hz.mp3,audio,-7.0,-5.9,-1.0,-4.633
+5,risset,ramp_90to60BPM_8s_700Hz.mp3,both,-1.5,-3.5,-3.5,-2.833
+5,risset,ramp_90to60BPM_8s_700Hz.mp3,haptic,-2.0,-3.0,-3.5,-2.833
+5,risset,ramp_90to70BPM_8s_700Hz.mp3,audio,-3.5,-1.5,-3.0,-2.667
+5,risset,ramp_90to70BPM_8s_700Hz.mp3,both,-4.0,-3.0,-1.5,-2.833
+5,risset,ramp_90to70BPM_8s_700Hz.mp3,haptic,-2.0,-3.5,-2.0,-2.5
+5,risset,ramp_90to90BPM_8s_700Hz.mp3,audio,-3.0,0.5,-0.5,-1.0
+5,risset,ramp_90to90BPM_8s_700Hz.mp3,both,1.5,1.0,0.0,0.833
+5,risset,ramp_90to90BPM_8s_700Hz.mp3,haptic,0.5,-0.5,1.0,0.333
+5,risset,rissettrhythm reverse-1.5.mp3,audio,-1.0,-1.0,-1.0,-1.0
+5,risset,rissettrhythm reverse-1.5.mp3,both,-1.0,-1.5,-0.5,-1.0
+5,risset,rissettrhythm reverse-1.5.mp3,haptic,-1.0,-0.5,-0.5,-0.667
+5,risset,rissettrhythm reverse.mp3,audio,-2.0,-0.5,-0.5,-1.0
+5,risset,rissettrhythm reverse.mp3,both,-0.5,-1.0,0.0,-0.5
+5,risset,rissettrhythm reverse.mp3,haptic,0.5,0.5,0.0,0.333
+5,risset,rissettrhythm-1.5.mp3,audio,2.0,1.5,3.0,2.167
+5,risset,rissettrhythm-1.5.mp3,both,2.5,4.0,2.5,3.0
+5,risset,rissettrhythm-1.5.mp3,haptic,2.0,1.5,2.5,2.0
+5,risset,rissettrhythm.mp3,audio,3.0,2.5,2.0,2.5
+5,risset,rissettrhythm.mp3,both,2.0,2.0,1.5,1.833
+5,risset,rissettrhythm.mp3,haptic,0.5,3.0,2.0,1.833
