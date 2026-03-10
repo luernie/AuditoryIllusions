@@ -12,7 +12,7 @@ Participant,Stimulus,Filename,Modality,Score_Run1,Score_Run2,Score_Run3,Average
 1,risset,ramp_60to80BPM_8s_700Hz.mp3,both,3.9,4.1,2.3,3.433
 1,risset,ramp_60to80BPM_8s_700Hz.mp3,haptic,4.8,1.0,4.7,3.5
 1,risset,ramp_60to90BPM_8s_700Hz.mp3,audio,4.7,4.1,4.7,4.5
-1,risset,ramp_60to90BPM_8s_700Hz.mp3,both,4.7,4.2,3.4,4.1
+1,risset,ramp_60to90BPM_8s_700Hz.mp3,both,4.7,4.2-,3.4,4.1
 1,risset,ramp_60to90BPM_8s_700Hz.mp3,haptic,3.5,3.3,2.5,3.1
 1,risset,ramp_80to60BPM_8s_700Hz.mp3,audio,-3.0,-2.6,-2.6,-2.733
 1,risset,ramp_80to60BPM_8s_700Hz.mp3,both,-2.1,-1.7,-2.5,-2.1
