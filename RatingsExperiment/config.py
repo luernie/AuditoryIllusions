@@ -4,7 +4,7 @@ config.py — shared settings
 MODE: set to "trial" for participants, "dev" to see all debug info
 """
 
-MODE = "dev"   # <-- change to "trial" when running with participants
+MODE = "trial"   # <-- change to "trial" when running with participants
 
 # ── FOLDERS ───────────────────────────────────────────────────────────────────
 RISSET_FOLDER  = "AudioRatingRR"
