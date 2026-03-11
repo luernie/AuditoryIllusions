@@ -18,7 +18,7 @@ try:
 
     # generate white noise at low volume in chunks to avoid memory issues
     chunk = int(sr * duration)
-    noise = (np.random.uniform(-1, 1, chunk) * 0.08).astype(np.float32)
+    noise = (np.random.uniform(-1, 1, chunk) * 0.15).astype(np.float32)
     if ch == 2:
         noise = np.column_stack([noise, noise])
 
