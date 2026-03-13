@@ -160,7 +160,7 @@ def build_ranking_summary(file_list: list) -> pd.DataFrame:
     One row per Participant x Modality x Filename
     Score   = mean across the 3 blocks (raw)
     Score_N = normalised across ALL 3 runs per Participant before averaging,
-              then the normalised scores are averaged.
+              then the normalised scores are averaged
     Rationale: the 3 flashcard runs are a single pool of ratings for that
     participant. Normalising across all runs together keeps the averaged
     Score_N on a consistent [-1, 1] scale and avoids compressing the mean
