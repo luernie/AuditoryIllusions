@@ -1,0 +1,10 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+9,3,shepard,both,1,pitch_decrease_strong_200to100Hz.mp3,-10.0
+9,3,shepard,both,2,pitch_decrease_mild_200to141Hz.mp3,-9.0
+9,3,shepard,both,3,shepard_falling_1.0.mp3,-6.3
+9,3,shepard,both,4,shepard_falling_1.5.mp3,-5.1
+9,3,shepard,both,5,pitch_increase_mild_200to283Hz.mp3,-3.5
+9,3,shepard,both,6,pitch_constant_200to200Hz.mp3,-2.4
+9,3,shepard,both,7,pitch_increase_strong_200to400Hz.mp3,6.1
+9,3,shepard,both,8,shepard_rising_1.0.mp3,8.1
+9,3,shepard,both,9,shepard_rising_1.5.mp3,10.0
