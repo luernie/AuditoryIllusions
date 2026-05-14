@@ -268,7 +268,8 @@ def finish():
         f"Experiment complete for participant {p}.\n\nResults saved to:\n{OUTPUT_FOLDER}")
     root.destroy()
     sys.exit(0)
-
+ 
+ 
 
 if __name__ == "__main__":
     show_setup()
