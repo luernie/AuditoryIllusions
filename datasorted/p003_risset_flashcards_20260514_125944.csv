@@ -1,0 +1,64 @@
+Participant,Stimulus,Run,Filename,Modality,Score
+3,risset,1,rissettrhythm.mp3,haptic,1.5
+3,risset,1,ramp_90to120BPM_8s_700Hz.mp3,audio,6.0
+3,risset,1,ramp_90to60BPM_8s_700Hz.mp3,audio,-10.0
+3,risset,1,ramp_90to110BPM_8s_700Hz.mp3,audio,2.0
+3,risset,1,rissettrhythm reverse.mp3,audio,-3.0
+3,risset,1,ramp_90to60BPM_8s_700Hz.mp3,both,-8.0
+3,risset,1,ramp_90to70BPM_8s_700Hz.mp3,audio,-6.0
+3,risset,1,ramp_90to90BPM_8s_700Hz.mp3,haptic,-0.5
+3,risset,1,rissettrhythm reverse.mp3,both,-3.5
+3,risset,1,ramp_90to110BPM_8s_700Hz.mp3,both,4.0
+3,risset,1,ramp_90to60BPM_8s_700Hz.mp3,haptic,-7.0
+3,risset,1,ramp_90to90BPM_8s_700Hz.mp3,both,0.0
+3,risset,1,ramp_90to120BPM_8s_700Hz.mp3,haptic,3.0
+3,risset,1,ramp_90to90BPM_8s_700Hz.mp3,audio,-2.5
+3,risset,1,rissettrhythm.mp3,both,2.0
+3,risset,1,rissettrhythm reverse.mp3,haptic,0.0
+3,risset,1,ramp_90to70BPM_8s_700Hz.mp3,both,-5.0
+3,risset,1,ramp_90to70BPM_8s_700Hz.mp3,haptic,-5.0
+3,risset,1,rissettrhythm.mp3,audio,3.0
+3,risset,1,ramp_90to110BPM_8s_700Hz.mp3,haptic,3.0
+3,risset,1,ramp_90to120BPM_8s_700Hz.mp3,both,8.0
+3,risset,2,ramp_90to60BPM_8s_700Hz.mp3,haptic,-4.5
+3,risset,2,ramp_90to110BPM_8s_700Hz.mp3,haptic,4.0
+3,risset,2,ramp_90to110BPM_8s_700Hz.mp3,audio,5.0
+3,risset,2,ramp_90to60BPM_8s_700Hz.mp3,both,-9.0
+3,risset,2,rissettrhythm.mp3,haptic,1.5
+3,risset,2,rissettrhythm reverse.mp3,haptic,0.0
+3,risset,2,ramp_90to90BPM_8s_700Hz.mp3,both,1.0
+3,risset,2,ramp_90to110BPM_8s_700Hz.mp3,both,5.0
+3,risset,2,ramp_90to70BPM_8s_700Hz.mp3,audio,-3.0
+3,risset,2,ramp_90to120BPM_8s_700Hz.mp3,haptic,3.0
+3,risset,2,rissettrhythm.mp3,audio,5.5
+3,risset,2,rissettrhythm.mp3,both,5.0
+3,risset,2,ramp_90to90BPM_8s_700Hz.mp3,haptic,-1.5
+3,risset,2,ramp_90to90BPM_8s_700Hz.mp3,audio,0.0
+3,risset,2,rissettrhythm reverse.mp3,audio,-5.5
+3,risset,2,rissettrhythm reverse.mp3,both,-4.0
+3,risset,2,ramp_90to120BPM_8s_700Hz.mp3,both,6.5
+3,risset,2,ramp_90to120BPM_8s_700Hz.mp3,audio,10.0
+3,risset,2,ramp_90to70BPM_8s_700Hz.mp3,both,-2.5
+3,risset,2,ramp_90to60BPM_8s_700Hz.mp3,audio,-1.5
+3,risset,2,ramp_90to70BPM_8s_700Hz.mp3,haptic,-3.0
+3,risset,3,rissettrhythm reverse.mp3,haptic,0.0
+3,risset,3,ramp_90to110BPM_8s_700Hz.mp3,audio,4.0
+3,risset,3,ramp_90to120BPM_8s_700Hz.mp3,haptic,2.0
+3,risset,3,rissettrhythm reverse.mp3,audio,-2.0
+3,risset,3,rissettrhythm reverse.mp3,both,-2.0
+3,risset,3,ramp_90to70BPM_8s_700Hz.mp3,haptic,-2.5
+3,risset,3,ramp_90to60BPM_8s_700Hz.mp3,haptic,-2.0
+3,risset,3,ramp_90to120BPM_8s_700Hz.mp3,both,7.5
+3,risset,3,rissettrhythm.mp3,audio,3.5
+3,risset,3,ramp_90to110BPM_8s_700Hz.mp3,haptic,2.5
+3,risset,3,ramp_90to60BPM_8s_700Hz.mp3,audio,-6.5
+3,risset,3,rissettrhythm.mp3,haptic,0.0
+3,risset,3,ramp_90to90BPM_8s_700Hz.mp3,both,0.0
+3,risset,3,ramp_90to120BPM_8s_700Hz.mp3,audio,7.0
+3,risset,3,ramp_90to90BPM_8s_700Hz.mp3,haptic,1.0
+3,risset,3,rissettrhythm.mp3,both,3.0
+3,risset,3,ramp_90to70BPM_8s_700Hz.mp3,audio,-5.0
+3,risset,3,ramp_90to70BPM_8s_700Hz.mp3,both,-3.0
+3,risset,3,ramp_90to110BPM_8s_700Hz.mp3,both,6.0
+3,risset,3,ramp_90to90BPM_8s_700Hz.mp3,audio,4.0
+3,risset,3,ramp_90to60BPM_8s_700Hz.mp3,both,-2.5
