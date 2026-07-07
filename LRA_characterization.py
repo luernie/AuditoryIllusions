@@ -23,8 +23,8 @@ LIST_DEVICES = False       # Set False after you find your device index
 AUDIO_DEVICE = 12         # Change to MME version of your HD Audio device
 SERIAL_PORT  = "COM3"
 
-FREQ_START   = 100
-FREQ_END     = 400
+FREQ_START   = 0
+FREQ_END     = 600
 FREQ_STEP    = 10
 AMPLITUDE    = 0.8        # 0.0–1.0, don't clip at 1.0
 
