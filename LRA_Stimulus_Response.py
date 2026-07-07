@@ -1,24 +1,16 @@
 # lra_stimulus_response.py
-# Plays each MP3 file from a folder through the audio jack → Syntacts → LRA
+# Plays each MP3 file from multiple folders through audio jack → Syntacts → LRA
 # while simultaneously recording MPU-6050 accelerometer data.
-# Produces a time-series plot per file showing:
-#   - Top:    RMS acceleration over time (vibration intensity)
-#   - Bottom: Dominant frequency over time (what frequency the motor outputs)
+# Produces a time-series plot per file saved next to each MP3.
 #
 # SETUP:
-#   - Same hardware as lra_characterize_v2.py
 #   - Arduino Uno running lra_accel_stream.ino (MPU-6050 on A4/A5)
 #   - Syntacts board via audio jack → LRA motor touching MPU-6050
 #
 # INSTALL (run once):
 #   pip install pydub sounddevice numpy matplotlib pyserial
-#   Also install ffmpeg: https://ffmpeg.org/download.html
-#   Then add ffmpeg to your PATH, or set FFMPEG_PATH below
-#
-# USAGE:
-#   1. Set STIMULI_FOLDER to your folder of MP3 files
-#   2. Set AUDIO_DEVICE and SERIAL_PORT
-#   3. Run: python lra_stimulus_response.py
+#   Install ffmpeg: https://ffmpeg.org/download.html → add to PATH
+#   or set FFMPEG_PATH below
 
 import os
 import threading
@@ -27,32 +19,35 @@ import serial
 import numpy as np
 import sounddevice as sd
 import matplotlib
-matplotlib.use('Agg')  # non-interactive backend so plots save without popping up
+matplotlib.use('Agg')  # non-interactive — saves plots without popping up
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
-# Folder containing your MP3 stimulus files
-STIMULI_FOLDER = r"C:\Users\Luke\Documents\Code\AuditoryIllusions\stimuli"
+# Add as many folders as you want — script processes all MP3s in each
+STIMULI_FOLDERS = [
+    r"C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingST",
+    r"C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingRR",
+]
 
-# Audio device index — same as lra_characterize_v2.py (device 12)
+# Audio device index — same as lra_characterize_v2.py
 AUDIO_DEVICE = 12
 
 # Arduino COM port
 SERIAL_PORT = "COM3"
 
 # Analysis window settings
-WINDOW_MS   = 200    # ms per FFT window — 200ms gives good freq resolution
-STEP_MS     = 50     # ms between windows — 50ms = ~20 time points per second
+WINDOW_MS = 200   # ms per FFT window
+STEP_MS   = 50    # ms between windows (~20 time points per second)
 
 # Accelerometer
 ACCEL_SCALE = 16384.0   # LSB/g at ±2g range
 
 # Audio
-AUDIO_RATE  = 48000     # Hz — Windows HD Audio default
+AUDIO_RATE = 48000      # Hz — Windows HD Audio default
 
-# ffmpeg path — set this if ffmpeg is not on your system PATH
+# ffmpeg — set path if not on system PATH
 # e.g. FFMPEG_PATH = r"C:\ffmpeg\bin\ffmpeg.exe"
 FFMPEG_PATH = None
 
@@ -60,7 +55,6 @@ FFMPEG_PATH = None
 
 
 def setup_ffmpeg():
-    """Point pydub at ffmpeg if not on PATH."""
     if FFMPEG_PATH:
         AudioSegment.converter = FFMPEG_PATH
         print(f"  ffmpeg: {FFMPEG_PATH}")
@@ -69,19 +63,18 @@ def setup_ffmpeg():
 
 
 def load_mp3(filepath):
-    """Load MP3 file and return (float32 array, sample_rate)."""
+    """Load MP3 and return (float32 array, sample_rate)."""
     audio = AudioSegment.from_mp3(filepath)
-    audio = audio.set_frame_rate(AUDIO_RATE).set_channels(1)  # mono, 48kHz
+    audio = audio.set_frame_rate(AUDIO_RATE).set_channels(1)
     samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
-    # Normalize to -1.0 to +1.0
     samples /= float(2 ** (audio.sample_width * 8 - 1))
     return samples, AUDIO_RATE
 
 
 def measure_sample_rate(ser, duration=2.0):
-    """Measure actual Arduino serial sample rate."""
+    """Measure actual Arduino serial sample rate via timestamps."""
     ser.reset_input_buffer()
-    samples = []
+    samples    = []
     timestamps = []
     t0 = time.time()
     while time.time() - t0 < duration:
@@ -100,15 +93,11 @@ def measure_sample_rate(ser, duration=2.0):
 
 
 def record_accel(ser, duration, accel_rate, result_dict):
-    """
-    Thread function — records accelerometer samples for `duration` seconds.
-    Stores (samples_array, timestamps_array) in result_dict.
-    """
+    """Thread: records accelerometer for duration seconds."""
     samples    = []
     timestamps = []
-    deadline   = time.time() + duration + 1.0  # small buffer
+    deadline   = time.time() + duration + 1.0
     ser.reset_input_buffer()
-
     while time.time() < deadline:
         line = ser.readline().decode("utf-8", errors="ignore").strip()
         try:
@@ -117,46 +106,67 @@ def record_accel(ser, duration, accel_rate, result_dict):
             timestamps.append(time.time())
         except ValueError:
             pass
-
     result_dict['samples']    = np.array(samples,    dtype=np.float64)
     result_dict['timestamps'] = np.array(timestamps, dtype=np.float64)
 
 
+def find_mme_device(preferred_index):
+    """Find MME version of preferred device — avoids WDM-KS errors on Windows."""
+    devices = sd.query_devices()
+    preferred_name = devices[preferred_index]['name'].split(' - ')[0].strip()
+    for i, dev in enumerate(devices):
+        if dev['max_output_channels'] > 0:
+            if preferred_name.lower() in dev['name'].lower() and 'MME' in dev['name']:
+                print(f"  Auto-selected MME device [{i}]: {dev['name']}")
+                return i
+    print(f"  Using device [{preferred_index}]: {devices[preferred_index]['name']}")
+    return preferred_index
+
+
 def play_audio(audio_array, sample_rate, device, start_event, result_dict):
-    """
-    Thread function — plays audio array through sounddevice.
-    Fires start_event exactly when playback begins so accel thread
-    can align its timestamps.
-    """
+    """Thread: plays audio via callback stream, fires start_event when playback begins."""
+    # Find MME version of device to avoid WDM-KS blocking API error
+    mme_device = find_mme_device(device)
+
+    pos = [0]
+    def callback(outdata, frames, time_info, status):
+        end   = pos[0] + frames
+        chunk = audio_array[pos[0]:end]
+        if len(chunk) < frames:
+            outdata[:len(chunk), 0] = chunk
+            outdata[len(chunk):, 0] = 0  # pad with silence at end
+        else:
+            outdata[:, 0] = chunk
+        pos[0] = min(pos[0] + frames, len(audio_array))
+
     stream = sd.OutputStream(
         samplerate=sample_rate,
         channels=1,
         dtype='float32',
-        device=device,
-        latency='high'
+        device=mme_device,
+        latency='high',
+        callback=callback
     )
     stream.start()
     result_dict['play_start'] = time.time()
-    start_event.set()           # signal to main thread: playback has begun
-    stream.write(audio_array)
+    start_event.set()  # signal: playback has begun
+
+    # Wait for audio to finish playing
+    duration = len(audio_array) / sample_rate
+    time.sleep(duration + 0.5)
+
     stream.stop()
     stream.close()
     result_dict['play_end'] = time.time()
 
 
 def compute_time_series(samples, timestamps, play_start, accel_rate,
-                         window_ms=200, step_ms=50):
-    """
-    Sliding window FFT over the accelerometer recording.
-    Returns (time_axis, rms_array, peak_freq_array).
-    """
+                        window_ms=200, step_ms=50):
+    """Sliding window FFT. Returns (time_axis, rms_array, peak_freq_array)."""
     window_samples = int(accel_rate * window_ms / 1000)
     step_samples   = int(accel_rate * step_ms   / 1000)
 
-    # Align timestamps to playback start
-    t_rel = timestamps - play_start  # seconds relative to audio start
-
-    # Only keep samples from after playback started
+    t_rel   = timestamps - play_start
     mask    = t_rel >= 0
     samples = samples[mask]
     t_rel   = t_rel[mask]
@@ -165,59 +175,47 @@ def compute_time_series(samples, timestamps, play_start, accel_rate,
         print("  WARNING: Not enough samples for analysis")
         return np.array([]), np.array([]), np.array([])
 
-    time_axis  = []
-    rms_vals   = []
-    peak_freqs = []
-
+    time_axis, rms_vals, peak_freqs = [], [], []
     i = 0
     while i + window_samples <= len(samples):
         window = samples[i : i + window_samples]
         t_mid  = t_rel[i + window_samples // 2]
+        w      = window - np.mean(window)
 
-        # Remove DC
-        w = window - np.mean(window)
-
-        # RMS
-        rms = float(np.sqrt(np.mean(w ** 2)))
-
-        # FFT peak frequency
+        rms      = float(np.sqrt(np.mean(w ** 2)))
         fft_mag  = np.abs(np.fft.rfft(w))
         freqs    = np.fft.rfftfreq(len(w), d=1.0 / accel_rate)
-        fft_mag[0] = 0  # zero DC bin
+        fft_mag[0] = 0
         peak_f   = float(freqs[np.argmax(fft_mag)]) if np.max(fft_mag) > 1e-8 else 0.0
 
         time_axis.append(t_mid)
         rms_vals.append(rms)
         peak_freqs.append(peak_f)
-
         i += step_samples
 
     return np.array(time_axis), np.array(rms_vals), np.array(peak_freqs)
 
 
 def plot_and_save(time_axis, rms_vals, peak_freqs, filename, out_path, duration):
-    """Save a two-panel time-series plot for one stimulus file."""
+    """Save two-panel time-series plot next to the source MP3."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
     fig.suptitle(f"LRA Response — {filename}", fontsize=13, fontweight="bold")
 
-    # Top: RMS amplitude over time
     ax1.plot(time_axis, rms_vals, color="royalblue", linewidth=1.5)
     ax1.fill_between(time_axis, rms_vals, alpha=0.2, color="royalblue")
     ax1.set_ylabel("RMS Acceleration (g)", fontsize=11)
     ax1.set_title("Vibration Intensity Over Time", fontsize=11)
     ax1.set_ylim(bottom=0)
     ax1.grid(True, alpha=0.3)
-    ax1.axvline(0, color="gray", linestyle="--", linewidth=0.8, label="Audio start")
 
-    # Bottom: dominant frequency over time
     ax2.plot(time_axis, peak_freqs, color="darkorange", linewidth=1.5)
     ax2.set_ylabel("Dominant Frequency (Hz)", fontsize=11)
     ax2.set_xlabel("Time (seconds)", fontsize=11)
     ax2.set_title("Motor Output Frequency Over Time", fontsize=11)
     ax2.set_ylim(0, 500)
     ax2.set_xlim(0, duration)
-    ax2.axhline(200, color="red", linestyle="--", linewidth=1,
-                label="LRA resonance (~200 Hz)")
+    ax2.axhline(210, color="red", linestyle="--", linewidth=1,
+                label="LRA resonance (210 Hz)")
     ax2.legend(fontsize=9)
     ax2.grid(True, alpha=0.3)
 
@@ -233,58 +231,50 @@ def process_file(filepath, ser, accel_rate):
     stem     = os.path.splitext(filename)[0]
     out_path = os.path.join(os.path.dirname(filepath), f"{stem}_response.png")
 
-    print(f"\n── {filename} ──────────────────────────────────────")
+    print(f"\n  ── {filename}")
 
-    # Load and decode MP3
-    print("  Loading MP3...")
     try:
         audio_array, sample_rate = load_mp3(filepath)
     except Exception as e:
-        print(f"  ERROR loading file: {e}")
-        return
+        print(f"  ERROR loading: {e}")
+        return {'status': 'error', 'filename': filename, 'error': str(e)}
 
     duration = len(audio_array) / sample_rate
-    print(f"  Duration: {duration:.2f}s  |  Samples: {len(audio_array)}")
+    print(f"  Duration: {duration:.2f}s")
 
-    # Shared result dicts for threads
     audio_result = {}
     accel_result = {}
     start_event  = threading.Event()
 
-    # Start accelerometer recording thread first
     accel_thread = threading.Thread(
         target=record_accel,
         args=(ser, duration, accel_rate, accel_result),
         daemon=True
     )
-    accel_thread.start()
-
-    # Start audio playback thread — fires start_event when playback begins
     audio_thread = threading.Thread(
         target=play_audio,
         args=(audio_array, sample_rate, AUDIO_DEVICE, start_event, audio_result),
         daemon=True
     )
+
+    accel_thread.start()
     audio_thread.start()
 
-    # Wait for playback to actually start before doing anything else
     start_event.wait(timeout=5.0)
     play_start = audio_result.get('play_start', time.time())
-    print(f"  Playback started — recording for {duration:.1f}s...")
+    print(f"  Playing — recording for {duration:.1f}s...")
 
-    # Wait for both threads to finish
     audio_thread.join(timeout=duration + 5.0)
     accel_thread.join(timeout=duration + 5.0)
 
-    print(f"  Captured {len(accel_result.get('samples', []))} accelerometer samples")
-
-    # Compute time series
     samples    = accel_result.get('samples',    np.array([]))
     timestamps = accel_result.get('timestamps', np.array([]))
 
+    print(f"  Captured {len(samples)} accelerometer samples")
+
     if len(samples) < 10:
-        print("  ERROR: Too few accelerometer samples — skipping plot")
-        return
+        print("  ERROR: Too few samples — skipping")
+        return {'status': 'error', 'filename': filename, 'error': 'Too few accelerometer samples'}
 
     time_axis, rms_vals, peak_freqs = compute_time_series(
         samples, timestamps, play_start, accel_rate,
@@ -292,14 +282,125 @@ def process_file(filepath, ser, accel_rate):
     )
 
     if len(time_axis) == 0:
-        print("  ERROR: No valid windows computed — skipping plot")
-        return
+        print("  ERROR: No valid windows — skipping")
+        return {'status': 'error', 'filename': filename, 'error': 'No valid FFT windows'}
 
-    # Save plot
     plot_and_save(time_axis, rms_vals, peak_freqs, filename, out_path, duration)
 
-    # Brief pause between files so motor settles
-    time.sleep(1.0)
+    # Save raw time-series data as txt
+    save_timeseries_txt(time_axis, rms_vals, peak_freqs, filepath,
+                        duration, accel_rate, WINDOW_MS, STEP_MS)
+
+    time.sleep(1.0)  # let motor settle between files
+
+    # Compute summary metrics for this file
+    peak_rms_idx = int(np.argmax(rms_vals))
+    valid_freqs  = peak_freqs[peak_freqs > 10]  # exclude near-DC noise
+
+    return {
+        'status':        'ok',
+        'filename':      filename,
+        'duration':      duration,
+        'peak_rms':      float(np.max(rms_vals)),
+        'peak_rms_time': float(time_axis[peak_rms_idx]),
+        'avg_freq':      float(np.mean(valid_freqs))   if len(valid_freqs) > 0 else 0.0,
+        'min_freq':      float(np.min(valid_freqs))    if len(valid_freqs) > 0 else 0.0,
+        'max_freq':      float(np.max(valid_freqs))    if len(valid_freqs) > 0 else 0.0,
+    }
+
+
+def save_timeseries_txt(time_axis, rms_vals, peak_freqs, filepath,
+                         duration, accel_rate, window_ms, step_ms):
+    """
+    Save raw time-series data to a tab-delimited txt file.
+    Columns: time_s, rms_g, peak_freq_hz
+    Header includes all metadata needed to recreate the plot.
+    """
+    stem     = os.path.splitext(os.path.basename(filepath))[0]
+    out_path = os.path.join(os.path.dirname(filepath), f"{stem}_response.txt")
+
+    with open(out_path, 'w', encoding='utf-8') as f:
+        # Metadata header
+        f.write(f"# LRA Stimulus Response — Time Series Data\n")
+        f.write(f"# Source file:    {os.path.basename(filepath)}\n")
+        f.write(f"# Generated:      {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"# Duration:       {duration:.3f} s\n")
+        f.write(f"# Accel rate:     {accel_rate:.1f} Hz\n")
+        f.write(f"# Window size:    {window_ms} ms\n")
+        f.write(f"# Step size:      {step_ms} ms\n")
+        f.write(f"# LRA resonance:  210 Hz\n")
+        f.write(f"# Rows:           {len(time_axis)}\n")
+        f.write(f"#\n")
+        f.write(f"# To recreate plot in Python:\n")
+        f.write(f"#   import numpy as np, matplotlib.pyplot as plt\n")
+        f.write(f"#   data = np.loadtxt('filename.txt', delimiter='\t', comments='#')\n")
+        f.write(f"#   t, rms, freq = data[:,0], data[:,1], data[:,2]\n")
+        f.write(f"#   fig, (ax1, ax2) = plt.subplots(2,1, sharex=True)\n")
+        f.write(f"#   ax1.plot(t, rms);  ax1.set_ylabel('RMS Acceleration (g)')\n")
+        f.write(f"#   ax2.plot(t, freq); ax2.set_ylabel('Dominant Frequency (Hz)')\n")
+        f.write(f"#   plt.show()\n")
+        f.write(f"#\n")
+        f.write(f"# Columns:\n")
+        f.write(f"# time_s\trms_g\tpeak_freq_hz\n")
+
+        # Data rows — tab delimited
+        for t, r, fq in zip(time_axis, rms_vals, peak_freqs):
+            f.write(f"{t:.4f}\t{r:.6f}\t{fq:.2f}\n")
+
+    print(f"  Data saved  → {os.path.basename(out_path)}")
+    return out_path
+
+
+def save_folder_summary(folder, results):
+    """Save a one-line-per-file summary for the whole folder."""
+    folder_name = os.path.basename(folder)
+    out_path    = os.path.join(folder, f"{folder_name}_summary.txt")
+
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(f"# LRA Folder Summary\n")
+        f.write(f"# Folder:    {folder}\n")
+        f.write(f"# Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"# Files:     {len(results)}\n")
+        f.write(f"#\n")
+        f.write(f"# filename\tduration_s\tpeak_rms_g\tpeak_rms_time_s\t"
+                f"avg_freq_hz\tmin_freq_hz\tmax_freq_hz\n")
+
+        good = [r for r in results if r['status'] == 'ok']
+        for r in results:
+            if r['status'] == 'error':
+                f.write(f"# ERROR: {r['filename']} — {r['error']}\n")
+                continue
+            f.write(
+                f"{r['filename']}\t"
+                f"{r['duration']:.3f}\t"
+                f"{r['peak_rms']:.6f}\t"
+                f"{r['peak_rms_time']:.3f}\t"
+                f"{r['avg_freq']:.2f}\t"
+                f"{r['min_freq']:.2f}\t"
+                f"{r['max_freq']:.2f}\n"
+            )
+
+    print(f"  Folder summary → {os.path.basename(out_path)}")
+    return out_path
+
+
+def collect_mp3s(folders):
+    """Collect all MP3 files from a list of folders."""
+    all_files = []
+    for folder in folders:
+        if not os.path.isdir(folder):
+            print(f"WARNING: Folder not found, skipping: {folder}")
+            continue
+        mp3s = sorted([
+            os.path.join(folder, f)
+            for f in os.listdir(folder)
+            if f.lower().endswith(".mp3")
+        ])
+        if mp3s:
+            all_files.append((folder, mp3s))
+        else:
+            print(f"WARNING: No MP3s found in: {folder}")
+    return all_files
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────
@@ -308,25 +409,19 @@ if __name__ == "__main__":
 
     setup_ffmpeg()
 
-    # Find MP3 files
-    if not os.path.isdir(STIMULI_FOLDER):
-        print(f"ERROR: Folder not found: {STIMULI_FOLDER}")
-        print("Update STIMULI_FOLDER at the top of this script.")
+    # Collect MP3s from all folders
+    folder_groups = collect_mp3s(STIMULI_FOLDERS)
+
+    if not folder_groups:
+        print("No MP3 files found in any of the specified folders.")
         exit(1)
 
-    mp3_files = sorted([
-        os.path.join(STIMULI_FOLDER, f)
-        for f in os.listdir(STIMULI_FOLDER)
-        if f.lower().endswith(".mp3")
-    ])
-
-    if not mp3_files:
-        print(f"No MP3 files found in: {STIMULI_FOLDER}")
-        exit(1)
-
-    print(f"Found {len(mp3_files)} MP3 files in {STIMULI_FOLDER}")
-    for f in mp3_files:
-        print(f"  {os.path.basename(f)}")
+    total = sum(len(mp3s) for _, mp3s in folder_groups)
+    print(f"\nFound {total} MP3 files across {len(folder_groups)} folders:")
+    for folder, mp3s in folder_groups:
+        print(f"\n  {folder}  ({len(mp3s)} files)")
+        for f in mp3s:
+            print(f"    {os.path.basename(f)}")
 
     # Connect to Arduino
     print(f"\nConnecting to Arduino on {SERIAL_PORT}...")
@@ -340,7 +435,6 @@ if __name__ == "__main__":
     time.sleep(5)
     ser.reset_input_buffer()
 
-    # Wait for READY signal
     t0 = time.time()
     while time.time() - t0 < 10:
         if ser.in_waiting > 0:
@@ -349,20 +443,31 @@ if __name__ == "__main__":
                 print("Arduino ready.")
                 break
 
-    # Measure actual sample rate
     print("\nMeasuring Arduino sample rate...")
     accel_rate = measure_sample_rate(ser, duration=2.0)
 
-    # Process each file
-    print(f"\nProcessing {len(mp3_files)} files...")
+    # Process each folder
     try:
-        for filepath in mp3_files:
-            process_file(filepath, ser, accel_rate)
+        for folder, mp3s in folder_groups:
+            folder_name = os.path.basename(folder)
+            print(f"\n{'═'*55}")
+            print(f"  Folder: {folder_name}  ({len(mp3s)} files)")
+            print(f"{'═'*55}")
+
+            folder_results = []
+            for filepath in mp3s:
+                result = process_file(filepath, ser, accel_rate)
+                if result:
+                    folder_results.append(result)
+
+            # Save summary text file for this folder
+            if folder_results:
+                save_folder_summary(folder, folder_results)
 
     except KeyboardInterrupt:
-        print("\nInterrupted by user.")
+        print("\nInterrupted.")
 
     finally:
         ser.close()
         print("\nDone. Serial closed.")
-        print(f"Plots saved to: {STIMULI_FOLDER}")
+        print("Plots saved next to each MP3 file.")
