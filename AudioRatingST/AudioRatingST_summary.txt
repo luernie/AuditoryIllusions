@@ -1,13 +1,13 @@
 # LRA Folder Summary
 # Folder:    C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingST
-# Generated: 2026-07-13 15:05:19
+# Generated: 2026-07-13 15:47:29
 # Files:     7
 #
 # filename	duration_s	peak_rms_g	peak_rms_time_s	avg_freq_hz	min_freq_hz	max_freq_hz
-pitch_constant_220to220Hz.mp3	8.000	1.913583	1.246	218.67	209.49	233.67
-pitch_decrease_mild_220to156Hz.mp3	8.000	1.952598	1.880	185.24	153.45	220.79
-pitch_decrease_strong_220to110Hz.mp3	8.000	1.953477	1.132	162.94	113.15	234.15
-pitch_increase_mild_220to311Hz.mp3	8.000	1.966788	3.264	264.44	219.39	319.04
-pitch_increase_strong_220to440Hz.mp3	8.000	1.900376	0.586	321.53	217.43	474.43
-shepard_falling_1.0.mp3	8.000	1.568849	1.223	210.83	139.48	335.43
-shepard_rising_1.0.mp3	8.000	1.538552	7.650	213.64	141.08	325.46
+pitch_constant_220to220Hz.mp3	8.000	1.913901	0.490	218.99	211.91	232.70
+pitch_decrease_mild_220to156Hz.mp3	8.000	1.956035	2.533	185.28	152.26	219.30
+pitch_decrease_strong_220to110Hz.mp3	8.000	1.958581	2.330	162.37	111.10	230.22
+pitch_increase_mild_220to311Hz.mp3	8.000	1.991066	3.267	264.81	221.08	329.43
+pitch_increase_strong_220to440Hz.mp3	8.000	1.893348	0.640	321.44	222.10	455.62
+shepard_falling_1.0.mp3	8.000	1.539598	1.264	211.70	141.03	300.53
+shepard_rising_1.0.mp3	8.000	1.562558	5.147	209.71	141.58	306.27
