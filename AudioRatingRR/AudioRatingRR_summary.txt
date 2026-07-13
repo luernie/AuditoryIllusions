@@ -1,13 +1,13 @@
 # LRA Folder Summary
 # Folder:    C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingRR
-# Generated: 2026-07-07 15:03:50
+# Generated: 2026-07-13 15:06:34
 # Files:     7
 #
 # filename	duration_s	peak_rms_g	peak_rms_time_s	avg_freq_hz	min_freq_hz	max_freq_hz
-ramp_90to110BPM_8s_210Hz.mp3	8.000	1.390193	7.374	139.25	15.01	225.08
-ramp_90to120BPM_8s_210Hz.mp3	8.000	1.397727	4.954	130.41	10.00	230.08
-ramp_90to60BPM_8s_210Hz.mp3	8.000	1.384873	0.784	101.52	10.00	250.09
-ramp_90to70BPM_8s_210Hz.mp3	8.000	1.378763	3.608	112.05	10.00	225.08
-ramp_90to90BPM_8s_210Hz.mp3	8.000	1.385797	6.090	115.48	15.01	225.08
-rissettrhythm reverse.mp3	8.000	1.137051	7.849	157.09	25.01	210.07
-rissettrhythm.mp3	8.000	1.228677	5.564	154.43	25.01	220.08
+ramp_90to110BPM_8s_210Hz.mp3	8.000	1.333633	2.870	153.39	10.08	234.74
+ramp_90to120BPM_8s_210Hz.mp3	8.000	1.300479	5.159	160.07	10.45	258.19
+ramp_90to60BPM_8s_210Hz.mp3	8.000	1.293689	2.432	123.97	10.04	260.20
+ramp_90to70BPM_8s_210Hz.mp3	8.000	1.294416	2.380	125.92	20.20	254.25
+ramp_90to90BPM_8s_210Hz.mp3	8.000	1.297431	7.635	146.51	20.20	224.99
+rissettrhythm reverse.mp3	8.000	1.070317	8.050	186.21	138.21	269.47
+rissettrhythm.mp3	8.000	1.070741	2.388	188.05	104.62	269.38

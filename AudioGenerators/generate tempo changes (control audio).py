@@ -16,7 +16,7 @@ import os
 
 # ── Settings ───────────────────────────────────────────────────────────────────
 sr         = 48000                    # Hz — matches Windows HD Audio / Syntacts
-output_dir = "AudioRatingRR"
+output_dir = "AudioRatingRR"  # Output folder for generated ramps
 os.makedirs(output_dir, exist_ok=True)
 
 # LRA resonance peak from characterization — use this as carrier for all beeps
@@ -74,6 +74,11 @@ def generate_ramp(bpm_start, bpm_end, duration, beep_freq, beep_duration,
     peak = np.max(np.abs(signal))
     if peak > 1e-9:
         signal *= 0.9 / peak
+
+    # 50ms fade-out on the whole file — prevents any residual ring artifact
+    # Individual beeps already have Hanning envelopes so fade-in not needed
+    fade_out = int(0.050 * sample_rate)
+    signal[-fade_out:] *= np.linspace(1, 0, fade_out)
 
     # ── Save ───────────────────────────────────────────────────────────────────
     fname_base = f"ramp_{bpm_start}to{bpm_end}BPM_{duration}s_{beep_freq}Hz"

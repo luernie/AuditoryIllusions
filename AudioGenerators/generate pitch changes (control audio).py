@@ -76,12 +76,15 @@ def generate_pitch_ramp(label, f0, f1, duration, sample_rate, amplitude, output_
     phase  = 2 * np.pi * np.cumsum(freqs) / sample_rate
     signal = amplitude * np.sin(phase)
 
-    # 10ms fade in/out — longer than original 5ms because
-    # lower frequencies (110 Hz) have longer periods and need
-    # more cycles to fade cleanly without audible clicks
-    fade = int(0.010 * sample_rate)
-    signal[:fade]  *= np.linspace(0, 1, fade)
-    signal[-fade:] *= np.linspace(1, 0, fade)
+    # Asymmetric fade — short in, long out
+    # 10ms fade-in: clean onset at all frequencies
+    # 50ms fade-out: prevents LRA cutoff ring artifact at stimulus end
+    #   (motor stores mechanical energy at extreme frequencies and rings
+    #    at resonance when signal cuts abruptly — longer fade drains it)
+    fade_in  = int(0.010 * sample_rate)
+    fade_out = int(0.050 * sample_rate)
+    signal[:fade_in]   *= np.linspace(0, 1, fade_in)
+    signal[-fade_out:] *= np.linspace(1, 0, fade_out)
 
     # ── Save ───────────────────────────────────────────────────────────────────
     oct_change = np.log2(f1 / f0) if f0 != f1 else 0.0

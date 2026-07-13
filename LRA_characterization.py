@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 
 LIST_DEVICES = False       # Set False after you find your device index
 
-AUDIO_DEVICE = 12         # Change to MME version of your HD Audio device
+AUDIO_DEVICE = 3          # MME Headphones (HD Audio) — device 12 is WDM-KS, avoid
 SERIAL_PORT  = "COM3"
 
 FREQ_START   = 0
