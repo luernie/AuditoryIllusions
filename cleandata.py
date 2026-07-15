@@ -1,34 +1,26 @@
 """
-Data Cleaning Script -- ANOVA-Ready Output
-------------------------------------------
-Produces 4 tab-delimited .txt files for RStudio:
+clean_data.py — ANOVA-Ready Output
+------------------------------------
+Reads ranking summary and flashcard averages CSVs from INPUT_DIR and
+produces 4 tab-delimited .txt files for RStudio:
 
-  1. risset_blocks.txt
-       Long format: one row per Participant x Modality x Filename
-       Score    = raw score
-       Score_N  = normalised per Participant x Block (divide by abs max of that block)
+    risset_ranking.txt
+    shepard_ranking.txt
+    risset_flashcards.txt
+    shepard_flashcards.txt
 
-  2. shepard_blocks.txt
-       Same structure as above for shepard stimuli.
+Each file has columns:
+    Participant  Modality  Filename  Score  Score_N
 
-  3. risset_ranking_summary.txt
-       Long format: one row per Participant x Modality x Filename
-       Score    = mean across the 3 blocks
-       Score_N  = normalised per Participant across all 3 runs (divide by abs max)
-
-  4. shepard_ranking_summary.txt
-       Same structure as above for shepard stimuli.
-
-Normalisation method: divide by absolute max
-  normalised = x / max(|x|)  within the normalisation window
-  Zero stays zero (neutral anchor preserved). Most extreme score becomes +/-1.
+Normalisation: two-sided, per participant across all stimuli/modalities
+    Score_N =  Score / max( positive scores)   for Score > 0
+    Score_N =  Score / abs(min(negative scores)) for Score < 0  [result is negative]
+    Score_N =  0                                for Score == 0
+    → positive side anchors at +1, negative side anchors at -1 independently.
 
 Usage:
     python clean_data.py
-
-    Edit INPUT_DIR and OUTPUT_DIR below to point at your folders.
-    The input folder can contain subfolders per participant (p001/, p002/ ...)
-    or all files flat in one directory. Flashcard files are automatically skipped.
+    python clean_data.py --input_dir datasorted --output_dir output
 """
 
 import os
@@ -38,20 +30,21 @@ import argparse
 import pandas as pd
 import numpy as np
 
+
 # -- SET YOUR FOLDERS HERE -----------------------------------------------------
-INPUT_DIR  = "datasorted"    # folder containing participant CSVs
-OUTPUT_DIR = "output"  # folder to write the 4 txt files + R code
+INPUT_DIR  = "datasorted"
+OUTPUT_DIR = "output"
 # ------------------------------------------------------------------------------
 
 
 # -- helpers -------------------------------------------------------------------
 
-def find_participant_id(filepath: str) -> str:
-    """Extract participant ID string (e.g. 'p006') from filename."""
+def find_participant_id(filepath: str) -> int:
+    """Extract numeric participant ID from filename (e.g. 'p006' → 6)."""
     basename = os.path.basename(filepath)
-    m = re.match(r"(p\d+)_", basename)
+    m = re.match(r"p(\d+)_", basename)
     if m:
-        return m.group(1)
+        return int(m.group(1))
     raise ValueError(f"Cannot parse participant ID from: {basename}")
 
 
@@ -61,75 +54,87 @@ def load_csv(filepath: str) -> pd.DataFrame:
     return df
 
 
-def normalise_by_absmax(series: pd.Series) -> pd.Series:
+def normalise_two_sided(series: pd.Series) -> pd.Series:
     """
-    Divide by the absolute maximum of the series.
-    If all values are zero, return the series unchanged (avoids division by zero).
+    Two-sided normalisation per participant:
+      positive scores: divide by max of positive scores  → range (0, +1]
+      negative scores: divide by abs(min of negative scores) → range [-1, 0)
+      zeros stay zero.
+    If there are no positive or no negative scores, that side stays as-is
+    (avoids division by zero on a flat participant).
     """
-    absmax = series.abs().max()
-    if absmax == 0 or pd.isna(absmax):
-        return series
-    return series / absmax
+    result = series.copy().astype(float)
+
+    pos_mask = series > 0
+    neg_mask = series < 0
+
+    if pos_mask.any():
+        pos_max = series[pos_mask].max()
+        result[pos_mask] = series[pos_mask] / pos_max
+
+    if neg_mask.any():
+        neg_min = series[neg_mask].min()   # most negative value
+        result[neg_mask] = series[neg_mask] / abs(neg_min)
+
+    return result
 
 
 # -- file-type detectors -------------------------------------------------------
-
-def is_block_file(basename: str, stimulus: str) -> bool:
-    pattern = rf"p\d+_block0[123]_{stimulus}_(both|haptic|audio)_\d+(_\d+)?\.csv"
-    return bool(re.match(pattern, basename))
-
 
 def is_ranking_summary(basename: str, stimulus: str) -> bool:
     pattern = rf"p\d+_{stimulus}_ranking_summary_\d+(_\d+)?\.csv"
     return bool(re.match(pattern, basename))
 
 
+def is_flashcard_averages(basename: str, stimulus: str) -> bool:
+    pattern = rf"p\d+_{stimulus}_flashcards_averages_\d+(_\d+)?\.csv"
+    return bool(re.match(pattern, basename))
+
+
 # -- file collection -----------------------------------------------------------
 
 def collect_files(input_dir: str):
-    risset_blocks, shepard_blocks, risset_ranking, shepard_ranking = [], [], [], []
+    risset_ranking    = []
+    shepard_ranking   = []
+    risset_flashcards = []
+    shepard_flashcards = []
 
     csv_files = sorted(glob.glob(os.path.join(input_dir, "**", "p*.csv"), recursive=True))
     if not csv_files:
         csv_files = sorted(glob.glob(os.path.join(input_dir, "p*.csv")))
     if not csv_files:
         print(f"WARNING: No CSV files found in {input_dir}")
-        return risset_blocks, shepard_blocks, risset_ranking, shepard_ranking
+        return risset_ranking, shepard_ranking, risset_flashcards, shepard_flashcards
 
     for fp in csv_files:
         base = os.path.basename(fp)
-        if "flashcard" in base:
-            continue
-        if is_block_file(base, "risset"):
-            risset_blocks.append(fp)
-        elif is_block_file(base, "shepard"):
-            shepard_blocks.append(fp)
-        elif is_ranking_summary(base, "risset"):
+        if is_ranking_summary(base, "risset"):
             risset_ranking.append(fp)
         elif is_ranking_summary(base, "shepard"):
             shepard_ranking.append(fp)
+        elif is_flashcard_averages(base, "risset"):
+            risset_flashcards.append(fp)
+        elif is_flashcard_averages(base, "shepard"):
+            shepard_flashcards.append(fp)
         else:
             print(f"  [skipped] {base}")
 
-    return risset_blocks, shepard_blocks, risset_ranking, shepard_ranking
+    return risset_ranking, shepard_ranking, risset_flashcards, shepard_flashcards
 
 
 # -- builders ------------------------------------------------------------------
 
-def build_blocks(file_list: list) -> pd.DataFrame:
+def build_ranking(file_list: list) -> pd.DataFrame:
     """
-    One row per Participant x Modality x Filename.
-    Score_N = normalised per Participant x Block (each block normalised independently).
-    Rationale: each block is a self-contained ranking session so the score range
-    is meaningful only within that block. Normalising per block preserves the
-    relative ordering within each condition without letting one block's absolute
-    range distort another's.
+    Reads ranking summary CSVs (one per participant).
+    Score   = raw score from the ranking task
+    Score_N = two-sided normalisation per participant across all rows
     """
     frames = []
     for fp in file_list:
         try:
             df = load_csv(fp)
-            df["ParticipantID"] = find_participant_id(fp)
+            df["Participant"] = find_participant_id(fp)
             frames.append(df)
         except Exception as e:
             print(f"  ERROR loading {fp}: {e}")
@@ -139,38 +144,45 @@ def build_blocks(file_list: list) -> pd.DataFrame:
 
     combined = pd.concat(frames, ignore_index=True)
 
-    # Normalise per Participant x Block window
+    # Rename Score column if needed (ranking summary uses 'Score')
+    if "Score" not in combined.columns:
+        raise KeyError(f"Expected 'Score' column, found: {list(combined.columns)}")
+
+    # Two-sided normalisation per participant
     combined["Score_N"] = (
         combined
-        .groupby(["ParticipantID", "Block"])["Score"]
-        .transform(normalise_by_absmax)
+        .groupby("Participant")["Score"]
+        .transform(normalise_two_sided)
     )
 
-    col_order = ["ParticipantID", "Participant", "Block", "Modality", "Filename", "Rank", "Score", "Score_N"]
-    col_order = [c for c in col_order if c in combined.columns]
-    combined = combined[col_order]
+    # Round numeric columns to 3 decimal places
+    combined["Score"]   = combined["Score"].round(3)
+    combined["Score_N"] = combined["Score_N"].round(3)
 
-    combined.sort_values(["ParticipantID", "Block", "Modality", "Filename"], inplace=True)
+    # Keep only the columns we want, in order (Filename last)
+    combined = combined[["Participant", "Modality", "Score", "Score_N", "Filename"]]
+
+    # Sort: participant → modality (audio, both, haptic) → filename
+    modality_order = {"audio": 0, "both": 1, "haptic": 2}
+    combined["_mod_sort"] = combined["Modality"].map(modality_order).fillna(99)
+    combined.sort_values(["Participant", "_mod_sort", "Filename"], inplace=True)
+    combined.drop(columns=["_mod_sort"], inplace=True)
     combined.reset_index(drop=True, inplace=True)
+
     return combined
 
 
-def build_ranking_summary(file_list: list) -> pd.DataFrame:
+def build_flashcards(file_list: list) -> pd.DataFrame:
     """
-    One row per Participant x Modality x Filename
-    Score   = mean across the 3 blocks (raw)
-    Score_N = normalised across ALL 3 runs per Participant before averaging,
-              then the normalised scores are averaged
-    Rationale: the 3 flashcard runs are a single pool of ratings for that
-    participant. Normalising across all runs together keeps the averaged
-    Score_N on a consistent [-1, 1] scale and avoids compressing the mean
-    by averaging already-independently-normalised values.
+    Reads flashcard averages CSVs (one per participant).
+    Score   = the Average column from the flashcard averages file
+    Score_N = two-sided normalisation per participant across all rows
     """
     frames = []
     for fp in file_list:
         try:
             df = load_csv(fp)
-            df["ParticipantID"] = find_participant_id(fp)
+            df["Participant"] = find_participant_id(fp)
             frames.append(df)
         except Exception as e:
             print(f"  ERROR loading {fp}: {e}")
@@ -180,127 +192,102 @@ def build_ranking_summary(file_list: list) -> pd.DataFrame:
 
     combined = pd.concat(frames, ignore_index=True)
 
-    # Normalise per Participant across ALL blocks/runs before averaging
+    # Flashcard averages file uses 'Average' as the score column
+    if "Average" not in combined.columns:
+        raise KeyError(f"Expected 'Average' column, found: {list(combined.columns)}")
+
+    combined = combined.rename(columns={"Average": "Score"})
+
+    # Two-sided normalisation per participant
     combined["Score_N"] = (
         combined
-        .groupby("ParticipantID")["Score"]
-        .transform(normalise_by_absmax)
+        .groupby("Participant")["Score"]
+        .transform(normalise_two_sided)
     )
 
-    # Average both raw and normalised scores across blocks
-    averaged = (
-        combined
-        .groupby(
-            ["ParticipantID", "Participant", "Stimulus", "Modality", "Filename"],
-            as_index=False
-        )
-        .agg(
-            Score=("Score", "mean"),
-            Score_N=("Score_N", "mean"),
-            N_blocks=("Block", "count")
-        )
-    )
+    # Round numeric columns to 3 decimal places
+    combined["Score"]   = combined["Score"].round(3)
+    combined["Score_N"] = combined["Score_N"].round(3)
 
-    averaged.sort_values(["ParticipantID", "Modality", "Filename"], inplace=True)
-    averaged.reset_index(drop=True, inplace=True)
-    return averaged
+    # Keep only the columns we want, in order (Filename last)
+    combined = combined[["Participant", "Modality", "Score", "Score_N", "Filename"]]
+
+    # Sort: participant → modality (audio, both, haptic) → filename
+    modality_order = {"audio": 0, "both": 1, "haptic": 2}
+    combined["_mod_sort"] = combined["Modality"].map(modality_order).fillna(99)
+    combined.sort_values(["Participant", "_mod_sort", "Filename"], inplace=True)
+    combined.drop(columns=["_mod_sort"], inplace=True)
+    combined.reset_index(drop=True, inplace=True)
+
+    return combined
 
 
 def save_txt(df: pd.DataFrame, output_path: str):
     df.to_csv(output_path, sep="\t", index=False)
-    print(f"  Saved {len(df)} rows -> {output_path}")
+    print(f"  Saved {len(df)} rows → {output_path}")
 
 
-# -- R code hints --------------------------------------------------------------
+# -- sanity checks -------------------------------------------------------------
 
-R_CODE = """\
-# -- ANOVA-ready R code ----------------------------------------------------------
-# Use Score for raw analysis, Score_N for normalised analysis.
-# install.packages("ez")  # run once if not installed
-library(ez)
+def sanity_check(df: pd.DataFrame, label: str):
+    """Print warnings if Score_N is out of expected range."""
+    out_of_range = df[(df["Score_N"] > 1.0 + 1e-9) | (df["Score_N"] < -1.0 - 1e-9)]
+    if not out_of_range.empty:
+        print(f"  WARNING [{label}]: {len(out_of_range)} Score_N values outside [-1, 1]:")
+        print(out_of_range.to_string(index=False))
+    else:
+        print(f"  OK [{label}]: all Score_N values within [-1, 1]")
 
-# -- 1. Risset blocks: one-way RM-ANOVA on Stimulus (Score_N) -----------------
-risset_blocks <- read.table("risset_blocks.txt", header=TRUE, sep="\\t")
-risset_blocks$ParticipantID <- factor(risset_blocks$ParticipantID)
-risset_blocks$Modality      <- factor(risset_blocks$Modality)
-risset_blocks$Filename      <- factor(risset_blocks$Filename)
-
-# Collapse across modality first (modality order was fixed, not randomised)
-risset_blocks_collapsed <- risset_blocks %>%
-  group_by(ParticipantID, Filename) %>%
-  summarise(Score_N = mean(Score_N), Score = mean(Score), .groups="drop")
-
-ezANOVA(data=risset_blocks_collapsed, dv=Score_N, wid=ParticipantID, within=Filename)
-
-# -- 2. Shepard blocks: one-way RM-ANOVA on Stimulus (Score_N) ----------------
-shepard_blocks <- read.table("shepard_blocks.txt", header=TRUE, sep="\\t")
-shepard_blocks$ParticipantID <- factor(shepard_blocks$ParticipantID)
-shepard_blocks$Modality      <- factor(shepard_blocks$Modality)
-shepard_blocks$Filename      <- factor(shepard_blocks$Filename)
-
-shepard_blocks_collapsed <- shepard_blocks %>%
-  group_by(ParticipantID, Filename) %>%
-  summarise(Score_N = mean(Score_N), Score = mean(Score), .groups="drop")
-
-ezANOVA(data=shepard_blocks_collapsed, dv=Score_N, wid=ParticipantID, within=Filename)
-
-# -- 3. Risset ranking summary: two-way RM-ANOVA (Modality x Stimulus) --------
-risset_ranking <- read.table("risset_ranking_summary.txt", header=TRUE, sep="\\t")
-risset_ranking$ParticipantID <- factor(risset_ranking$ParticipantID)
-risset_ranking$Modality      <- factor(risset_ranking$Modality)
-risset_ranking$Filename      <- factor(risset_ranking$Filename)
-
-ezANOVA(data=risset_ranking, dv=Score_N, wid=ParticipantID, within=.(Modality, Filename))
-
-# -- 4. Shepard ranking summary: two-way RM-ANOVA (Modality x Stimulus) -------
-shepard_ranking <- read.table("shepard_ranking_summary.txt", header=TRUE, sep="\\t")
-shepard_ranking$ParticipantID <- factor(shepard_ranking$ParticipantID)
-shepard_ranking$Modality      <- factor(shepard_ranking$Modality)
-shepard_ranking$Filename      <- factor(shepard_ranking$Filename)
-
-ezANOVA(data=shepard_ranking, dv=Score_N, wid=ParticipantID, within=.(Modality, Filename))
-"""
+    # Check each participant has at least one +1 or -1
+    for p, grp in df.groupby("Participant"):
+        has_pos_anchor = (grp["Score_N"] >= 1.0 - 1e-9).any()
+        has_neg_anchor = (grp["Score_N"] <= -1.0 + 1e-9).any()
+        if not has_pos_anchor and grp["Score"].max() > 0:
+            print(f"  WARNING [{label}] Participant {p}: no Score_N == +1.0")
+        if not has_neg_anchor and grp["Score"].min() < 0:
+            print(f"  WARNING [{label}] Participant {p}: no Score_N == -1.0")
 
 
 # -- entry point ---------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Clean participant CSVs into ANOVA-ready txt files.")
-    parser.add_argument("--input_dir",  default=INPUT_DIR,  help="Folder containing participant CSVs")
-    parser.add_argument("--output_dir", default=OUTPUT_DIR, help="Folder to write output txt files")
+    parser = argparse.ArgumentParser(
+        description="Clean participant CSVs into ANOVA-ready txt files.")
+    parser.add_argument("--input_dir",  default=INPUT_DIR)
+    parser.add_argument("--output_dir", default=OUTPUT_DIR)
     args = parser.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
 
     print(f"\nScanning: {args.input_dir}")
-    risset_blocks, shepard_blocks, risset_ranking, shepard_ranking = collect_files(args.input_dir)
+    risset_ranking, shepard_ranking, risset_flashcards, shepard_flashcards = \
+        collect_files(args.input_dir)
 
     print(f"\nFound:")
-    print(f"  Risset block files     : {len(risset_blocks)}")
-    print(f"  Shepard block files    : {len(shepard_blocks)}")
-    print(f"  Risset ranking files   : {len(risset_ranking)}")
-    print(f"  Shepard ranking files  : {len(shepard_ranking)}")
+    print(f"  Risset ranking files    : {len(risset_ranking)}")
+    print(f"  Shepard ranking files   : {len(shepard_ranking)}")
+    print(f"  Risset flashcard files  : {len(risset_flashcards)}")
+    print(f"  Shepard flashcard files : {len(shepard_flashcards)}")
 
     outputs = [
-        ("risset_blocks.txt",           build_blocks,          risset_blocks),
-        ("shepard_blocks.txt",          build_blocks,          shepard_blocks),
-        ("risset_ranking_summary.txt",  build_ranking_summary, risset_ranking),
-        ("shepard_ranking_summary.txt", build_ranking_summary, shepard_ranking),
+        ("risset_ranking.txt",    build_ranking,    risset_ranking),
+        ("shepard_ranking.txt",   build_ranking,    shepard_ranking),
+        ("risset_flashcards.txt", build_flashcards, risset_flashcards),
+        ("shepard_flashcards.txt",build_flashcards, shepard_flashcards),
     ]
 
     print(f"\nBuilding output files in: {args.output_dir}")
     for filename, builder, file_list in outputs:
+        if not file_list:
+            print(f"  WARNING: No input files for {filename}, skipping.")
+            continue
         df = builder(file_list)
         if df.empty:
-            print(f"  WARNING: No data for {filename}, skipping.")
+            print(f"  WARNING: Empty dataframe for {filename}, skipping.")
             continue
         out_path = os.path.join(args.output_dir, filename)
         save_txt(df, out_path)
-
-    hints_path = os.path.join(args.output_dir, "r_anova_code.R")
-    with open(hints_path, "w", encoding="utf-8") as f:
-        f.write(R_CODE)
-    print(f"  Saved R code        -> {hints_path}")
+        sanity_check(df, filename)
 
     print("\nDone.")
 
