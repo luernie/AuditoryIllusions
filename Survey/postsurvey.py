@@ -22,8 +22,9 @@ COLUMNS = [
     "Confidence (1-10)",
     "Task Difficulty (1-10)",
     # Task experience
-    "Easiest Modality",
-    "Hardest Modality",
+    "Ease of Rating — Audio Only (1-10)",
+    "Ease of Rating — Haptic Only (1-10)",
+    "Ease of Rating — Audio + Haptic (1-10)",
     "Vibration-Only Description",
     "Haptic-Audio Similarity (1-10)",
     "Patterns / Strategies",
@@ -143,34 +144,6 @@ class PostSurveyApp(tk.Tk):
 
         return var
 
-    def _pill_row(self, var, options):
-        """Pill/chip button row — highlights the selected option."""
-        f = tk.Frame(self.frame, bg="#f5f5f5")
-        f.pack(padx=20, pady=6, anchor="w")
-        buttons = {}
-
-        def select(val):
-            var.set(val)
-            for v, btn in buttons.items():
-                if v == val:
-                    btn.configure(bg="#2a6496", fg="white", relief="groove")
-                else:
-                    btn.configure(bg="white", fg="#2a6496", relief="groove")
-
-        for txt, val in options:
-            btn = tk.Button(
-                f, text=txt, font=("Arial", 10, "bold"), padx=16, pady=6,
-                bg="white", fg="#2a6496", relief="groove",
-                highlightbackground="#2a6496", highlightthickness=2,
-                activebackground="#1e4d72", activeforeground="white",
-                cursor="hand2", borderwidth=2,
-                command=lambda v=val: select(v)
-            )
-            btn.pack(side="left", padx=5)
-            buttons[val] = btn
-
-        return f
-
     def _textarea(self, height=4):
         t = tk.Text(self.frame, font=("Arial", 10), width=62, height=height)
         t.pack(padx=20, pady=2, anchor="w")
@@ -247,31 +220,32 @@ class PostSurveyApp(tk.Tk):
         # ── Part 2: Task Experience ──
         self._section("PART 2 — TASK EXPERIENCE")
 
-        MODALITIES = [("Audio only", "Audio only"), ("Haptic only", "Haptic only"),
-                      ("Audio + Haptic", "Audio + Haptic")]
+        self._label("1. How easy was it to make ratings in each condition?",
+                    "1 = very easy, 10 = very hard")
 
-        self._label("1. Which modality condition did you find easiest to rate?")
-        self.easiest = tk.StringVar()
-        self._pill_row(self.easiest, MODALITIES)
+        self._label("    Audio Only", wrap=False)
+        self.ease_audio = self._slider_row("Very Easy", "Very Hard")
 
-        self._label("2. Which modality condition did you find hardest to rate?")
-        self.hardest = tk.StringVar()
-        self._pill_row(self.hardest, MODALITIES)
+        self._label("    Haptic Only", wrap=False)
+        self.ease_haptic = self._slider_row("Very Easy", "Very Hard")
 
-        self._label("3. When rating the vibration-only condition, describe the types of vibrations you encountered. What features did you try to distinguish?", wrap=True)
+        self._label("    Audio + Haptic", wrap=False)
+        self.ease_both = self._slider_row("Very Easy", "Very Hard")
+
+        self._label("4. When rating the vibration-only condition, describe the types of vibrations you encountered. What features did you try to distinguish?", wrap=True)
         self.vib_desc = self._textarea(4)
 
-        self._label("4. Did the vibration sensation feel similar to what you heard in the audio condition?",
+        self._label("5. Did the vibration sensation feel similar to what you heard in the audio condition?",
                     "1 = completely different, 10 = essentially the same")
         self.similarity = self._slider_row("Completely different", "Essentially the same")
 
-        self._label("5. Did you notice any patterns or strategies emerging as you went through the experiment?")
+        self._label("6. Did you notice any patterns or strategies emerging as you went through the experiment?")
         self.strategies = self._textarea(4)
 
-        self._label("6. Was there anything confusing or uncomfortable about the task?")
+        self._label("7. Was there anything confusing or uncomfortable about the task?")
         self.confusing = self._textarea(4)
 
-        self._label("7. Any other comments about your experience?")
+        self._label("8. Any other comments about your experience?")
         self.other = self._textarea(4)
 
         # Submit
@@ -303,8 +277,9 @@ class PostSurveyApp(tk.Tk):
             "Frustration (1-10)": round(self.frustration.get(), 2),
             "Confidence (1-10)": round(self.confidence.get(), 2),
             "Task Difficulty (1-10)": round(self.difficulty.get(), 2),
-            "Easiest Modality": self.easiest.get(),
-            "Hardest Modality": self.hardest.get(),
+            "Ease of Rating — Audio Only (1-10)": round(self.ease_audio.get(), 2),
+            "Ease of Rating — Haptic Only (1-10)": round(self.ease_haptic.get(), 2),
+            "Ease of Rating — Audio + Haptic (1-10)": round(self.ease_both.get(), 2),
             "Vibration-Only Description": self.vib_desc.get("1.0", "end").strip(),
             "Haptic-Audio Similarity (1-10)": round(self.similarity.get(), 2),
             "Patterns / Strategies": self.strategies.get("1.0", "end").strip(),

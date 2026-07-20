@@ -1,0 +1,8 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+1,3,risset,both,1,risset_decelerating_haptic.wav,-10.0
+1,3,risset,both,2,ramp_90to60BPM_12s_210Hz.wav,-6.4
+1,3,risset,both,3,ramp_90to70BPM_12s_210Hz.wav,-6.1
+1,3,risset,both,4,ramp_90to90BPM_12s_210Hz.wav,-3.3
+1,3,risset,both,5,ramp_90to120BPM_12s_210Hz.wav,2.3
+1,3,risset,both,6,ramp_90to110BPM_12s_210Hz.wav,6.5
+1,3,risset,both,7,risset_accelerating_haptic.wav,10.0

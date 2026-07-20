@@ -1,16 +1,15 @@
 # lra_stimulus_response.py
-# Plays each MP3 file from multiple folders through audio jack → Syntacts → LRA
+# Plays each WAV file from multiple folders through audio jack → Syntacts → LRA
 # while simultaneously recording MPU-6050 accelerometer data.
-# Produces a time-series plot per file saved next to each MP3.
+# Produces a time-series plot per file saved next to each WAV.
 #
 # SETUP:
 #   - Arduino Uno running lra_accel_stream.ino (MPU-6050 on A4/A5)
 #   - Syntacts board via audio jack → LRA motor touching MPU-6050
 #
 # INSTALL (run once):
-#   pip install pydub sounddevice numpy matplotlib pyserial
-#   Install ffmpeg: https://ffmpeg.org/download.html → add to PATH
-#   or set FFMPEG_PATH below
+#   pip install soundfile sounddevice numpy matplotlib pyserial
+#   (WAV needs no ffmpeg — unlike the old MP3 version)
 
 import os
 import threading
@@ -21,12 +20,12 @@ import sounddevice as sd
 import matplotlib
 matplotlib.use('Agg')  # non-interactive — saves plots without popping up
 import matplotlib.pyplot as plt
-from pydub import AudioSegment
+import soundfile as sf
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
 # ══ MODE ══════════════════════════════════════════════════════════════════════
-# "collect" — Full hardware run. Plays each MP3 through the Syntacts board,
+# "collect" — Full hardware run. Plays each WAV through the Syntacts board,
 #             records the accelerometer, then saves plots + all txt files.
 #             This is what you run when gathering new data.
 #
@@ -42,7 +41,7 @@ from pydub import AudioSegment
 MODE = "collect"   # "collect" | "replot"
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Add as many folders as you want — script processes all MP3s in each
+# Add as many folders as you want — script processes all WAVs in each
 STIMULI_FOLDERS = [
     r"C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingST",
     r"C:\Users\Luke\Documents\Code\AuditoryIllusions\AudioRatingRR",
@@ -58,7 +57,15 @@ STIMULI_FOLDERS = [
 # recording can be re-plotted later in "replot" mode.
 FULL_ANALYSIS_FILES = [
     "ramp_90to90bpm",           # Risset rhythm steady-state control
+    "ramp_90to60bpm", 
+    "ramp_90to70bpm", 
+    "ramp_90to110bpm", 
+    "ramp_90to120bpm", 
     "pitch_constant_220to220hz",  # Shepard tone steady-state control
+    "pitch_increase__mild",
+    "pitch_increase_strong",
+    "pitch_decrease_mild",
+    "pitch_decrease_strong",
     # Add more filenames/substrings here as needed, e.g.:
     # "another_control_file_name",
 ]
@@ -90,8 +97,8 @@ STEP_MS   = 50    # ms between windows (~20 time points per second)
 #          logarithmically, so the two scales' tick marks will NOT line up
 #          evenly — this is expected, not a bug.
 #
-SPECTROGRAM_SCALE    = "g"    # "g" | "db" | "both"
-POWER_SPECTRUM_SCALE = "g"  # "g" | "db" | "both"
+SPECTROGRAM_SCALE    = "db"    # "g" | "db" | "both"
+POWER_SPECTRUM_SCALE = "both"  # "g" | "db" | "both"
 
 # Dynamic range shown in the spectrogram when using dB (in dB below the peak).
 # Lower = more contrast on the strongest components; higher = more weak
@@ -100,12 +107,12 @@ SPECTROGRAM_DB_RANGE = 40
 
 # ── Input vs output overlay on the power spectrum panel ───────────────────────
 # When True, the bottom-right panel plots TWO curves:
-#   INPUT  = FFT of the MP3 audio itself (what was commanded)
+#   INPUT  = FFT of the WAV audio itself (what was commanded)
 #   OUTPUT = FFT of the accelerometer signal (what the finger actually felt)
 # This directly visualizes the transfer function of the whole chain —
 # which frequency components survived, and which got attenuated by the LRA.
 #
-# The input spectrum is computed in software from the MP3 (no hardware needed),
+# The input spectrum is computed in software from the WAV (no hardware needed),
 # using the SAME sliding-window averaging and the SAME clipped time range as
 # the output, so the two are a like-for-like comparison.
 SHOW_INPUT_SPECTRUM = True
@@ -143,7 +150,7 @@ NORMALIZE_INPUT_OUTPUT = True
 #
 # 3+ = More tracks. Useful for Risset rhythm (broadband clicks excite several
 #      bins at once), but gets cluttered fast.
-N_DOMINANT_TRACKS = 2
+N_DOMINANT_TRACKS = 1
 
 # Minimum separation (Hz) between tracks. Peaks closer together than this are
 # treated as the SAME physical tone spread across adjacent FFT bins, not as
@@ -151,34 +158,50 @@ N_DOMINANT_TRACKS = 2
 # shoulders of a single peak. ~15 Hz works well at 200ms window size.
 TRACK_MIN_SEPARATION_HZ = 15.0
 
+# Minimum amplitude a candidate 2nd/3rd/... peak must have, as a fraction of
+# the strongest peak in that window, to be accepted as a real component
+# rather than spectral leakage (see compute_time_series for why leakage
+# happens even after Hann windowing — some residue can remain). 0.15 means
+# a candidate peak below -16.5 dB relative to the main peak is rejected and
+# that track slot shows a gap instead. Lower = more tracks accepted (risk:
+# more leakage slips through); higher = fewer, more conservative tracks
+# (risk: a real but quiet component, like a fading Shepard partial right at
+# the start/end of its crossfade, gets dropped).
+TRACK_MIN_RELATIVE_AMPLITUDE = 0.15
+
 # Accelerometer
 ACCEL_SCALE = 16384.0   # LSB/g at ±2g range
 
 # Audio
-AUDIO_RATE = 48000      # Hz — Windows HD Audio default
-
-# ffmpeg — set path if not on system PATH
-# e.g. FFMPEG_PATH = r"C:\ffmpeg\bin\ffmpeg.exe"
-FFMPEG_PATH = None
+AUDIO_RATE = 48000      # Hz — target playback rate (Windows HD Audio default).
+                        # WAV files not already at this rate are resampled to it.
 
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def setup_ffmpeg():
-    if FFMPEG_PATH:
-        AudioSegment.converter = FFMPEG_PATH
-        print(f"  ffmpeg: {FFMPEG_PATH}")
-    else:
-        print("  ffmpeg: using system PATH")
+def load_wav(filepath):
+    """
+    Load a WAV file and return (float32 mono array, sample_rate).
 
+    - Multi-channel files are downmixed to mono by averaging channels.
+    - soundfile returns float in [-1, 1] for PCM formats automatically.
+    - If the file's native rate differs from AUDIO_RATE, it's linearly
+      resampled to AUDIO_RATE so the output stream (opened at AUDIO_RATE)
+      plays it at the correct pitch/speed.
+    """
+    samples, sr = sf.read(filepath, dtype='float32', always_2d=True)
+    samples = samples.mean(axis=1)  # downmix to mono
 
-def load_mp3(filepath):
-    """Load MP3 and return (float32 array, sample_rate)."""
-    audio = AudioSegment.from_mp3(filepath)
-    audio = audio.set_frame_rate(AUDIO_RATE).set_channels(1)
-    samples = np.array(audio.get_array_of_samples(), dtype=np.float32)
-    samples /= float(2 ** (audio.sample_width * 8 - 1))
-    return samples, AUDIO_RATE
+    if sr != AUDIO_RATE:
+        # Linear resample onto the target rate
+        n_out = int(round(len(samples) * AUDIO_RATE / sr))
+        if n_out > 1:
+            x_old = np.linspace(0.0, 1.0, len(samples), endpoint=False)
+            x_new = np.linspace(0.0, 1.0, n_out, endpoint=False)
+            samples = np.interp(x_new, x_old, samples).astype(np.float32)
+        sr = AUDIO_RATE
+
+    return samples, sr
 
 
 def measure_sample_rate(ser, duration=2.0):
@@ -273,7 +296,8 @@ def play_audio(audio_array, sample_rate, device, start_event, result_dict):
     result_dict['play_end'] = time.time()
 
 
-def find_separated_peaks(fft_mag, freqs, n_peaks, min_sep_hz):
+def find_separated_peaks(fft_mag, freqs, n_peaks, min_sep_hz, max_freq_hz=500.0,
+                         min_relative_amplitude=0.15):
     """
     Find the top n_peaks in a spectrum, enforcing a minimum frequency
     separation between them.
@@ -284,6 +308,28 @@ def find_separated_peaks(fft_mag, freqs, n_peaks, min_sep_hz):
     physical tone (adjacent bins), which is useless — we want distinct
     components, e.g. the two octave partials of a Shepard tone.
 
+    max_freq_hz: hard ceiling on candidate peaks. Belt-and-suspenders
+    alongside the win_rate clamp in compute_time_series — even if a
+    window's rate calibration is briefly off, this stops any track from
+    reporting content above where the LRA has real usable output (the
+    characterization sweep found ~420 Hz as the top of the usable band;
+    500 Hz gives a small margin).
+
+    min_relative_amplitude: a candidate peak (2nd, 3rd, ...) is only
+    accepted if its magnitude is at least this fraction of the STRONGEST
+    peak's magnitude. Rejects spectral leakage sidelobes — with a
+    rectangular window, cutting a continuous tone into a 200ms box almost
+    never captures a whole number of cycles, so energy leaks into nearby
+    bins. That leakage can be the 2nd-largest bin in the window even
+    though it isn't a real second physical component; its strength swings
+    with the essentially-random phase alignment between the signal and the
+    window edge each frame, which is why it shows up as "random" spikes
+    rather than something with a clean physical explanation. 0.15 (-16 dB
+    relative to the main peak) is well above typical rectangular-window
+    leakage but still below a genuine octave partner in the Shepard data
+    (which ran ~10-20% relative, i.e. -7 to -18 dB in earlier peaks files).
+    Rejected slots come back as (0.0, 0.0) — plotted as a gap, not a value.
+
     Returns a list of (freq_hz, magnitude), sorted by FREQUENCY ascending.
     Sorting by frequency (not amplitude) is what keeps each track on a
     consistent partial across time — sorting by amplitude would make the
@@ -292,13 +338,25 @@ def find_separated_peaks(fft_mag, freqs, n_peaks, min_sep_hz):
 
     Returns fewer than n_peaks if the spectrum is too sparse; caller pads.
     """
-    mag  = fft_mag.copy()
-    hits = []
+    in_range = freqs <= max_freq_hz
+    freqs = freqs[in_range]
+    mag   = fft_mag[in_range].copy()
+    hits  = []
+    top_mag = None
 
     for _ in range(n_peaks):
         idx = int(np.argmax(mag))
         if mag[idx] <= 1e-8:
             break                       # nothing meaningful left
+
+        if top_mag is None:
+            top_mag = mag[idx]          # strongest peak always accepted
+        elif mag[idx] < min_relative_amplitude * top_mag:
+            # Too weak relative to the main peak — almost certainly
+            # spectral leakage, not a real second component. Stop here
+            # rather than accepting noise into a track slot.
+            break
+
         hits.append((float(freqs[idx]), float(mag[idx])))
         # Suppress this peak and its neighbourhood so the next pick is a
         # genuinely different component, not the same tone one bin over
@@ -309,10 +367,53 @@ def find_separated_peaks(fft_mag, freqs, n_peaks, min_sep_hz):
     return hits
 
 
+def recompute_tracks_from_matrix(fft_matrix, fft_freqs):
+    """
+    Recompute peak_freqs + peak_tracks from a saved FFT magnitude matrix,
+    using whatever N_DOMINANT_TRACKS / TRACK_MIN_SEPARATION_HZ /
+    TRACK_MIN_RELATIVE_AMPLITUDE are CURRENTLY set — not whatever was in
+    effect during the original "collect" run.
+
+    This is what makes track-count changes (and separation/threshold
+    tuning) work in "replot" mode without re-running the hardware: the
+    saved _fft_full.txt already contains the full per-window spectrum
+    (that's what draws the spectrogram/power spectrum regardless of how
+    many tracks were saved), so there's no need to re-collect just to see
+    a different N_DOMINANT_TRACKS — the raw material needed was there all
+    along, only the derived track lines need recomputing.
+
+    One caveat: this runs on the COMMON frequency grid (already resampled
+    from each window's own real per-window rate during collect), not the
+    original raw per-window axis. In practice the two are extremely close
+    (the resampling is linear interpolation onto a grid built from the same
+    session's overall rate), so this is a very close — not bit-identical —
+    reproduction of what a fresh "collect" run would compute.
+
+    Returns (peak_freqs, peak_tracks) with peak_tracks shape
+    (n_windows, N_DOMINANT_TRACKS).
+    """
+    n_windows = fft_matrix.shape[0]
+    peak_freqs  = np.zeros(n_windows)
+    peak_tracks = np.zeros((n_windows, N_DOMINANT_TRACKS))
+
+    for i in range(n_windows):
+        row = fft_matrix[i]
+        hits = find_separated_peaks(
+            row, fft_freqs, N_DOMINANT_TRACKS, TRACK_MIN_SEPARATION_HZ,
+            min_relative_amplitude=TRACK_MIN_RELATIVE_AMPLITUDE
+        )
+        track_row = [f for f, _ in hits]
+        track_row += [0.0] * (N_DOMINANT_TRACKS - len(track_row))
+        peak_tracks[i] = track_row
+        peak_freqs[i]  = (max(hits, key=lambda h: h[1])[0] if hits else 0.0)
+
+    return peak_freqs, peak_tracks
+
+
 def compute_input_spectrum(audio_array, audio_rate, common_freqs,
                            t_start, t_end, window_ms=200, step_ms=50):
     """
-    Compute the time-averaged FFT of the INPUT audio (the MP3 itself) —
+    Compute the time-averaged FFT of the INPUT audio (the WAV itself) —
     i.e. what was COMMANDED, before the LRA touched it.
 
     Deliberately mirrors compute_time_series() so input and output are a
@@ -421,6 +522,21 @@ def compute_time_series(samples, timestamps, play_start, accel_rate,
     # Common frequency grid — every window's spectrum gets resampled to this
     common_freqs = np.fft.rfftfreq(window_samples, d=1.0 / overall_rate)
 
+    # Hann window applied before every FFT (see loop below). A rectangular
+    # (unwindowed) cut almost never captures a whole number of cycles of a
+    # continuously-drifting LRA tone, so energy leaks into sidelobes spread
+    # across the spectrum — strong enough, on some frames, to look like a
+    # real second component. That leakage strength depends on the essentially
+    # random phase alignment between the tone and the window edge each
+    # frame, which is why it shows up as sporadic "random" spikes rather
+    # than anything with a clean physical explanation. Hann tapering
+    # suppresses this dramatically (its worst-case sidelobe is roughly
+    # -31 dB vs. rectangular's -13 dB). coherent_gain compensates for the
+    # amplitude Hann tapering removes, so magnitudes stay comparable to the
+    # untapered values (and stay meaningful as "g").
+    hann_win      = np.hanning(window_samples)
+    coherent_gain = max(float(np.mean(hann_win)), 1e-8)
+
     duration = t_rel[-1]
     t_start  = clip_start
     t_end    = duration - clip_end
@@ -436,19 +552,39 @@ def compute_time_series(samples, timestamps, play_start, accel_rate,
             i += step_samples
             continue
 
-        # This window's own actual rate, from its own timestamps
+        # This window's own actual rate, from its own timestamps.
+        # SAFETY CLAMP: serial/USB buffering on Windows can flush a backlog
+        # of samples all at once, making a single 200ms window's timestamps
+        # look artificially bunched together — that inflates the computed
+        # rate for THIS WINDOW ONLY, sometimes by 40-60%. An inflated rate
+        # pushes that window's Nyquist edge (rate/2) up into the 900-1000+ Hz
+        # range, and any real broadband/leakage energy near that edge gets
+        # mis-labeled as a legitimate high-frequency "track" — the spurious
+        # ~950-1030 Hz spikes seen in track2. A real LRA has no content up
+        # there (usable band tops out ~420 Hz per the characterization
+        # sweep), so any window whose local rate strays far from the
+        # session's overall rate is a timing artifact, not a real change in
+        # how fast the Arduino is sampling — clamp it back to overall_rate.
         if len(win_ts) >= 2:
             win_rate = (len(win_ts) - 1) / (win_ts[-1] - win_ts[0])
+            if not (0.8 * overall_rate <= win_rate <= 1.2 * overall_rate):
+                win_rate = overall_rate
         else:
             win_rate = overall_rate
 
         window = samples[i : i + window_samples]
-        w      = window - np.mean(window)
+        w      = window - np.mean(window)      # unwindowed — used for RMS,
+                                                # a true physical amplitude
+                                                # measure that tapering
+                                                # would otherwise distort
 
         rms = float(np.sqrt(np.mean(w ** 2)))
 
-        # FFT calibrated with THIS window's own rate — most accurate
-        fft_mag   = np.abs(np.fft.rfft(w))
+        # FFT calibrated with THIS window's own rate — most accurate.
+        # Hann-tapered + coherent-gain-corrected to suppress leakage
+        # sidelobes (see note above) while keeping magnitudes in ~g units.
+        w_fft     = w * hann_win
+        fft_mag   = np.abs(np.fft.rfft(w_fft)) / coherent_gain
         freqs_win = np.fft.rfftfreq(len(w), d=1.0 / win_rate)
         fft_mag_copy = fft_mag.copy()
         fft_mag_copy[0] = 0
@@ -458,7 +594,8 @@ def compute_time_series(samples, timestamps, play_start, accel_rate,
         # tone) rather than adjacent bins of the same tone. Sorted by
         # frequency so each track stays on a consistent partial over time.
         hits = find_separated_peaks(fft_mag_copy, freqs_win,
-                                    N_DOMINANT_TRACKS, TRACK_MIN_SEPARATION_HZ)
+                                    N_DOMINANT_TRACKS, TRACK_MIN_SEPARATION_HZ,
+                                    min_relative_amplitude=TRACK_MIN_RELATIVE_AMPLITUDE)
         track_row = [f for f, _ in hits]
         # Pad with 0.0 (plotted as NaN later) if fewer peaks than requested
         track_row += [0.0] * (N_DOMINANT_TRACKS - len(track_row))
@@ -608,7 +745,7 @@ def plot_and_save(time_axis, rms_vals, peak_freqs, peak_tracks,
                   fft_matrix, fft_freqs, filename, out_path, duration,
                   do_full, input_spectrum=None):
     """
-    Save plot next to source MP3.
+    Save plot next to source WAV.
 
     Simple files: 2 panels stacked (RMS + dominant frequency, both vs time).
 
@@ -769,7 +906,7 @@ def plot_and_save(time_axis, rms_vals, peak_freqs, peak_tracks,
                 ax_br.set_ylabel("Normalized Amplitude (peak = 1.0)", fontsize=11)
 
             ax_br.plot(power_freqs_plot, in_p, color=C_IN, linewidth=1.5,
-                       linestyle="--", label="INPUT (commanded — MP3)")
+                       linestyle="--", label="INPUT (commanded — WAV)")
             ax_br.plot(power_freqs_plot, out_p, color=C_OUT, linewidth=1.8,
                        label="OUTPUT (measured — accelerometer)")
             ax_br.fill_between(power_freqs_plot, out_p,
@@ -783,7 +920,7 @@ def plot_and_save(time_axis, rms_vals, peak_freqs, peak_tracks,
             #    did a given amount of audio drive actually produce?
             ax_in = ax_br
             ax_in.plot(power_freqs_plot, in_raw, color=C_IN, linewidth=1.5,
-                       linestyle="--", label="INPUT (commanded — MP3)")
+                       linestyle="--", label="INPUT (commanded — WAV)")
             ax_in.set_ylabel("Input Amplitude (audio units)",
                              fontsize=11, color=C_IN)
             ax_in.tick_params(axis='y', labelcolor=C_IN)
@@ -822,7 +959,7 @@ def plot_and_save(time_axis, rms_vals, peak_freqs, peak_tracks,
     print(f"  Plot saved -> {os.path.basename(out_path)}")
 
 def process_file(filepath, ser, accel_rate):
-    """Load, play, record, and plot one MP3 file."""
+    """Load, play, record, and plot one WAV file."""
     filename = os.path.basename(filepath)
     stem     = os.path.splitext(filename)[0]
     out_path = os.path.join(os.path.dirname(filepath), f"{stem}_response.png")
@@ -830,7 +967,7 @@ def process_file(filepath, ser, accel_rate):
     print(f"\n  ── {filename}")
 
     try:
-        audio_array, sample_rate = load_mp3(filepath)
+        audio_array, sample_rate = load_wav(filepath)
     except Exception as e:
         print(f"  ERROR loading: {e}")
         return {'status': 'error', 'filename': filename, 'error': str(e)}
@@ -884,7 +1021,7 @@ def process_file(filepath, ser, accel_rate):
 
     do_full = needs_full_analysis(filename)
 
-    # Compute the INPUT spectrum from the MP3 itself (no hardware involved).
+    # Compute the INPUT spectrum from the WAV itself (no hardware involved).
     # Matched to the output's time range so the comparison is like-for-like.
     input_spectrum = None
     if SHOW_INPUT_SPECTRUM and fft_freqs is not None and len(time_axis) > 0:
@@ -1047,7 +1184,7 @@ def save_fft_full(fft_matrix, fft_freqs, time_axis, rms_vals, peak_freqs,
         n_tracks = peak_tracks.shape[1] if peak_tracks is not None and peak_tracks.ndim == 2 else 0
         f.write(f"#@n_tracks={n_tracks}\n")
         if input_spectrum is not None:
-            # Time-averaged FFT of the source MP3 (what was COMMANDED), on the
+            # Time-averaged FFT of the source WAV (what was COMMANDED), on the
             # same freq grid. Lets replot mode redraw the input-vs-output
             # comparison without re-decoding the audio.
             inp_clip = input_spectrum[freq_mask]
@@ -1234,22 +1371,22 @@ def save_folder_summary(folder, results):
     return out_path
 
 
-def collect_mp3s(folders):
-    """Collect all MP3 files from a list of folders."""
+def collect_wavs(folders):
+    """Collect all WAV files from a list of folders."""
     all_files = []
     for folder in folders:
         if not os.path.isdir(folder):
             print(f"WARNING: Folder not found, skipping: {folder}")
             continue
-        mp3s = sorted([
+        wavs = sorted([
             os.path.join(folder, f)
             for f in os.listdir(folder)
-            if f.lower().endswith(".mp3")
+            if f.lower().endswith(".wav")
         ])
-        if mp3s:
-            all_files.append((folder, mp3s))
+        if wavs:
+            all_files.append((folder, wavs))
         else:
-            print(f"WARNING: No MP3s found in: {folder}")
+            print(f"WARNING: No WAVs found in: {folder}")
     return all_files
 
 
@@ -1278,6 +1415,21 @@ def replot_file(filepath):
         return {'status': 'error', 'filename': filename, 'error': str(e)}
 
     do_full = needs_full_analysis(filename)
+
+    # Recompute tracks fresh from the saved full spectrum using CURRENT
+    # N_DOMINANT_TRACKS / TRACK_MIN_SEPARATION_HZ / TRACK_MIN_RELATIVE_AMPLITUDE
+    # settings, rather than trusting whatever was saved during collect.
+    # The full spectrum matrix is saved for every file regardless of how
+    # many tracks were originally computed, so this works even if you
+    # change N_DOMINANT_TRACKS between collect and replot — no hardware
+    # re-run needed.
+    if fft_matrix is not None and len(fft_matrix) > 0:
+        old_n = peak_tracks.shape[1] if (peak_tracks is not None
+                                         and getattr(peak_tracks, 'ndim', 0) == 2) else 0
+        peak_freqs, peak_tracks = recompute_tracks_from_matrix(fft_matrix, fft_freqs)
+        if old_n != N_DOMINANT_TRACKS:
+            print(f"  Recomputed tracks: {old_n} -> {N_DOMINANT_TRACKS} "
+                  f"(from saved full spectrum, no hardware needed)")
 
     if SHOW_INPUT_SPECTRUM and input_spectrum is None:
         print(f"  NOTE: {stem}_fft_full.txt has no saved input spectrum "
@@ -1321,13 +1473,13 @@ def run_replot_mode(folder_groups):
         print(f"  Spectrogram dB range: {SPECTROGRAM_DB_RANGE} dB below peak")
 
     n_ok = n_skip = 0
-    for folder, mp3s in folder_groups:
+    for folder, wavs in folder_groups:
         print(f"\n{'─'*55}")
-        print(f"  Folder: {os.path.basename(folder)}  ({len(mp3s)} files)")
+        print(f"  Folder: {os.path.basename(folder)}  ({len(wavs)} files)")
         print(f"{'─'*55}")
 
         folder_results = []
-        for filepath in mp3s:
+        for filepath in wavs:
             result = replot_file(filepath)
             if result is None:
                 n_skip += 1
@@ -1351,8 +1503,6 @@ def run_collect_mode(folder_groups):
     print(f"\n{'='*60}")
     print(f"  MODE: collect  (hardware run — LRA + accelerometer)")
     print(f"{'='*60}")
-
-    setup_ffmpeg()
 
     # Connect to Arduino
     print(f"\nConnecting to Arduino on {SERIAL_PORT}...")
@@ -1395,13 +1545,13 @@ def run_collect_mode(folder_groups):
             exit(1)
 
     try:
-        for folder, mp3s in folder_groups:
+        for folder, wavs in folder_groups:
             print(f"\n{'═'*55}")
-            print(f"  Folder: {os.path.basename(folder)}  ({len(mp3s)} files)")
+            print(f"  Folder: {os.path.basename(folder)}  ({len(wavs)} files)")
             print(f"{'═'*55}")
 
             folder_results = []
-            for filepath in mp3s:
+            for filepath in wavs:
                 result = process_file(filepath, ser, accel_rate)
                 if result:
                     folder_results.append(result)
@@ -1415,7 +1565,7 @@ def run_collect_mode(folder_groups):
     finally:
         ser.close()
         print("\nDone. Serial closed.")
-        print("Plots + data saved next to each MP3 file.")
+        print("Plots + data saved next to each WAV file.")
         print("\nTIP: set MODE = \"replot\" to regenerate plots with different")
         print("     scale settings (g / dB) without re-running the hardware.")
 
@@ -1428,17 +1578,17 @@ if __name__ == "__main__":
         print(f"ERROR: MODE must be \"collect\" or \"replot\", got: {MODE!r}")
         exit(1)
 
-    folder_groups = collect_mp3s(STIMULI_FOLDERS)
+    folder_groups = collect_wavs(STIMULI_FOLDERS)
 
     if not folder_groups:
-        print("No MP3 files found in any of the specified folders.")
+        print("No WAV files found in any of the specified folders.")
         exit(1)
 
-    total = sum(len(mp3s) for _, mp3s in folder_groups)
-    print(f"\nFound {total} MP3 files across {len(folder_groups)} folders:")
-    for folder, mp3s in folder_groups:
-        print(f"\n  {folder}  ({len(mp3s)} files)")
-        for f in mp3s:
+    total = sum(len(wavs) for _, wavs in folder_groups)
+    print(f"\nFound {total} WAV files across {len(folder_groups)} folders:")
+    for folder, wavs in folder_groups:
+        print(f"\n  {folder}  ({len(wavs)} files)")
+        for f in wavs:
             print(f"    {os.path.basename(f)}")
 
     if MODE == "replot":
