@@ -1,14 +1,17 @@
 """
 flashcard_ui.py — flashcard rating phase
 3 separate runs of n×3 randomized audio/modality cards, with breaks between.
+Each run is saved to a TEMP file immediately for crash safety.
 """
 
 import tkinter as tk
 from tkinter import messagebox
 import os
 import sys
+import csv
 import subprocess
 import random
+from datetime import datetime
 
 AUDIO_EXTENSIONS = ('.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac')
 
@@ -43,13 +46,17 @@ def show_break_screen(root, message, button_text, on_continue):
 
 
 class FlashcardWindow:
-    def __init__(self, root, exp_config, audio_device, haptic_device, on_complete):
+    def __init__(self, root, exp_config, audio_device, haptic_device, on_complete,
+                 participant=None, exp_key=None, output_folder="data"):
         self.root          = root
         self.exp_config    = exp_config
         self.folder        = exp_config["folder"]
         self.audio_device  = audio_device
         self.haptic_device = haptic_device
         self.on_complete   = on_complete
+        self.participant   = participant
+        self.exp_key       = exp_key
+        self.output_folder = output_folder
 
         self.root.title("Rating Task")
         self.root.configure(bg="#f5f5f5")
@@ -74,6 +81,8 @@ class FlashcardWindow:
             self._start_next_run
         )
 
+    # ── RUN MANAGEMENT ────────────────────────────────────────────────────────
+
     def _start_next_run(self):
         if self._current_run >= NUM_RUNS:
             self.root.destroy()
@@ -91,7 +100,26 @@ class FlashcardWindow:
         self._build_card_ui()
         self._show_card()
 
+    def _save_run_temp(self, run_num, run_results):
+        """Save a single run's results immediately as a temp file."""
+        if self.participant is None or self.exp_key is None:
+            return
+        ts    = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fname = f"TEMP_{ts}_p{self.participant:03d}_{self.exp_key}_flashcard_run{run_num}.csv"
+        path  = os.path.join(self.output_folder, fname)
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Participant", "Experiment", "Run",
+                             "Filename", "Modality", "Score"])
+            for r in run_results:
+                writer.writerow([self.participant, self.exp_key, r["run"],
+                                 r["filename"], r["modality"], r["score"]])
+        print(f"Temp saved: {path}")
+
     def _on_run_complete(self):
+        run_num     = self._current_run + 1
+        run_results = [r for r in self.results if r["run"] == run_num]
+        self._save_run_temp(run_num, run_results)
         self._current_run += 1
         self._stop_all()
         if self._current_run >= NUM_RUNS:
@@ -105,23 +133,37 @@ class FlashcardWindow:
                 self._start_next_run
             )
 
+    # ── UI ────────────────────────────────────────────────────────────────────
+
     def _build_card_ui(self):
         for w in self.root.winfo_children():
             w.destroy()
-        self.root.geometry("560x460")
+        self.root.title(f"Set {self._current_run + 1}/{NUM_RUNS} — Rating Task")
+        self.root.geometry("680x680")
         self.root.resizable(False, False)
 
         banner = tk.Frame(self.root, bg="#f0f0f0",
                           highlightbackground="#ddd", highlightthickness=1)
         banner.pack(fill=tk.X, padx=20, pady=(16, 0))
         bi = tk.Frame(banner, bg="#f0f0f0")
-        bi.pack(fill=tk.X, padx=16, pady=10)
+        bi.pack(fill=tk.X, padx=20, pady=16)
+
         tk.Label(bi, text="Rating Task",
-                 bg="#f0f0f0", font=("Arial", 13, "bold")).pack(anchor="w")
-        tk.Label(bi,
-                 text=self.exp_config["instructions"],
-                 bg="#f0f0f0", fg="#333", font=("Arial", 9),
-                 justify="left").pack(anchor="w", pady=(4, 0))
+                 bg="#f0f0f0", font=("Arial", 18, "bold")).pack(anchor="w")
+
+        for heading, text in self.exp_config.get("definitions", []):
+            tk.Label(bi, text=heading, bg="#f0f0f0", fg="#111",
+                     font=("Arial", 13, "bold")).pack(anchor="w", pady=(8, 0))
+            tk.Label(bi, text=text, bg="#f0f0f0", fg="#333",
+                     font=("Arial", 12), justify="left",
+                     wraplength=620).pack(anchor="w")
+
+        bullets_frame = tk.Frame(bi, bg="#f0f0f0")
+        bullets_frame.pack(anchor="w", pady=(12, 0), fill=tk.X)
+        for bullet in self.exp_config.get("rating_bullets", []):
+            tk.Label(bullets_frame, text=f"•  {bullet}", bg="#f0f0f0", fg="#111",
+                     font=("Arial", 13), justify="left",
+                     wraplength=620).pack(anchor="w", pady=2)
 
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=12)
 
@@ -132,14 +174,15 @@ class FlashcardWindow:
         ci.pack(fill=tk.X, padx=20, pady=20)
 
         self.modality_lbl = tk.Label(ci, text="", bg="white", fg="#555",
-                                     font=("Arial", 10))
-        self.modality_lbl.pack(anchor="w", pady=(0, 14))
+                                     font=("Arial", 12))
+        self.modality_lbl.pack(anchor="w", pady=(0, 18))
 
         self.play_btn = tk.Button(ci, text="▶  Play", bg="#e8e8e8", fg="#333",
-                                  font=("Arial", 11), relief=tk.FLAT, padx=16, pady=6,
+                                  font=("Arial", 14, "bold"), relief=tk.FLAT,
+                                  padx=24, pady=12,
                                   activebackground="#ddd", cursor="hand2",
                                   command=self._play)
-        self.play_btn.pack(anchor="w", pady=(0, 16))
+        self.play_btn.pack(anchor="w", pady=(0, 20))
 
         slider_row = tk.Frame(ci, bg="white")
         slider_row.pack(fill=tk.X)
@@ -156,24 +199,26 @@ class FlashcardWindow:
                  font=("Arial", 8)).pack(side=tk.LEFT)
 
         self.score_lbl = tk.Label(ci, text="0.0", bg="white", fg="#ddd",
-                                   font=("Arial", 12, "bold"))
-        self.score_lbl.pack(anchor="e", pady=(6, 0))
+                                   font=("Arial", 16, "bold"))
+        self.score_lbl.pack(anchor="e", pady=(10, 0))
 
-        tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=(12, 0))
+        tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=(16, 0))
         footer = tk.Frame(self.root, bg="#f5f5f5")
-        footer.pack(fill=tk.X, padx=20, pady=10)
+        footer.pack(fill=tk.X, padx=20, pady=20)
 
         self.progress_lbl = tk.Label(footer, text="", bg="#f5f5f5",
                                      fg="#aaa", font=("Arial", 9))
         self.progress_lbl.pack(side=tk.LEFT)
 
         self.next_btn = tk.Button(footer, text="Submit 0.0",
-                                  font=("Arial", 11, "bold"), bg="#ccc", fg="white",
-                                  relief=tk.FLAT, padx=18, pady=7,
+                                  font=("Arial", 14, "bold"), bg="#ccc", fg="white",
+                                  relief=tk.FLAT, padx=28, pady=14,
                                   activebackground="#ccc", cursor="arrow",
                                   state=tk.DISABLED,
                                   command=self._next)
         self.next_btn.pack(side=tk.RIGHT)
+
+    # ── CARD LOGIC ────────────────────────────────────────────────────────────
 
     def _show_card(self):
         self._stop_all()
@@ -224,6 +269,8 @@ class FlashcardWindow:
                              activebackground="#555", cursor="hand2",
                              state=tk.NORMAL)
 
+    # ── PLAYBACK ──────────────────────────────────────────────────────────────
+
     def _play(self):
         self._stop_all()
         try:
@@ -237,7 +284,6 @@ class FlashcardWindow:
                 self._launch(self.haptic_device, self._current_filepath)
             self.play_btn.config(text="■  Playing", fg="#555")
             self.root.after(200, self._check_end)
-            # Unlock slider and submit on first play
             self.slider.config(state=tk.NORMAL, troughcolor="#e0e0e0")
             self.score_lbl.config(fg="#222")
             self._update_next_btn()
@@ -253,11 +299,9 @@ class FlashcardWindow:
     def _launch_noise(self, device_id, filepath):
         import soundfile as sf
         try:
-            info = sf.info(filepath)
-            duration = info.duration
+            duration = sf.info(filepath).duration
         except Exception:
             duration = 10.0
-        import os
         log = open(os.path.join(HERE, '_noise_error.log'), 'a')
         proc = subprocess.Popen(
             [sys.executable, NOISE_SCRIPT, str(device_id), str(duration)],

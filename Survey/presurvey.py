@@ -17,8 +17,8 @@ COLUMNS = [
     "Hearing Impairment", "Hearing Impairment Details",
     "Tactile Impairment", "Tactile Impairment Details",
     "Music Training",
-    "Vibration Sensitivity (1-10)",
-    "Haptic Experience (1-10)",
+    "Vibration Sensitivity (0-10)",
+    "Haptic Experience (0-10)",
 ]
 
 
@@ -47,17 +47,12 @@ class PreSurveyApp(tk.Tk):
         self.configure(bg="#f5f5f5")
         self.bind("<F11>", lambda e: self.attributes("-fullscreen", not self.attributes("-fullscreen")))
         self.bind("<Escape>", lambda e: self.attributes("-fullscreen", False))
-
         self._build_ui()
 
-    # ── helpers ────────────────────────────────────────────────────────────────
-
     def _section(self, text):
-        tk.Label(
-            self.frame, text=text, font=("Arial", 12, "bold"),
-            bg="#dce8f5", anchor="w", padx=8, pady=4,
-            relief="flat"
-        ).pack(fill="x", pady=(16, 4))
+        tk.Label(self.frame, text=text, font=("Arial", 12, "bold"),
+                 bg="#dce8f5", anchor="w", padx=8, pady=4,
+                 relief="flat").pack(fill="x", pady=(16, 4))
 
     def _label(self, text, sub=None, wrap=False):
         tk.Label(self.frame, text=text, font=("Arial", 10, "bold"),
@@ -78,7 +73,6 @@ class PreSurveyApp(tk.Tk):
         return e
 
     def _pill_row(self, var, options):
-        """Pill/chip button row — highlights the selected option."""
         f = tk.Frame(self.frame, bg="#f5f5f5")
         f.pack(padx=20, pady=6, anchor="w")
         buttons = {}
@@ -92,21 +86,17 @@ class PreSurveyApp(tk.Tk):
                     btn.configure(bg="white", fg="#2a6496", relief="groove")
 
         for txt, val in options:
-            btn = tk.Button(
-                f, text=txt, font=("Arial", 10, "bold"), padx=16, pady=6,
-                bg="white", fg="#2a6496", relief="groove",
-                highlightbackground="#2a6496", highlightthickness=2,
-                activebackground="#1e4d72", activeforeground="white",
-                cursor="hand2", borderwidth=2,
-                command=lambda v=val: select(v)
-            )
+            btn = tk.Button(f, text=txt, font=("Arial", 10, "bold"), padx=16, pady=6,
+                            bg="white", fg="#2a6496", relief="groove",
+                            highlightbackground="#2a6496", highlightthickness=2,
+                            activebackground="#1e4d72", activeforeground="white",
+                            cursor="hand2", borderwidth=2,
+                            command=lambda v=val: select(v))
             btn.pack(side="left", padx=5)
             buttons[val] = (btn, txt)
-
         return f
 
     def _yes_no_with_detail(self, var, detail_label="Details:"):
-        """Pill yes/no + a detail entry that enables on 'Yes'."""
         detail_var = tk.StringVar()
         pill_frame = tk.Frame(self.frame, bg="#f5f5f5")
         pill_frame.pack(padx=20, pady=4, anchor="w")
@@ -123,36 +113,32 @@ class PreSurveyApp(tk.Tk):
         def select(val):
             var.set(val)
             for v, btn in buttons.items():
-                if v == val:
-                    btn.configure(bg="#2a6496", fg="white")
-                else:
-                    btn.configure(bg="white", fg="#2a6496")
+                btn.configure(bg="#2a6496" if v == val else "white",
+                              fg="white" if v == val else "#2a6496")
             detail_entry.configure(state="normal" if val == "Yes" else "disabled")
 
         for txt, val in [("No", "No"), ("Yes", "Yes")]:
-            btn = tk.Button(
-                pill_frame, text=txt, font=("Arial", 10, "bold"), padx=16, pady=6,
-                bg="white", fg="#2a6496", relief="groove",
-                highlightbackground="#2a6496", highlightthickness=2,
-                activebackground="#1e4d72", activeforeground="white",
-                cursor="hand2", borderwidth=2,
-                command=lambda v=val: select(v)
-            )
+            btn = tk.Button(pill_frame, text=txt, font=("Arial", 10, "bold"), padx=16, pady=6,
+                            bg="white", fg="#2a6496", relief="groove",
+                            highlightbackground="#2a6496", highlightthickness=2,
+                            activebackground="#1e4d72", activeforeground="white",
+                            cursor="hand2", borderwidth=2,
+                            command=lambda v=val: select(v))
             btn.pack(side="left", padx=5)
             buttons[val] = btn
 
         select("No")
         return detail_var
 
-    def _slider_row(self, lo_label, hi_label):
-        """Canvas-based slider with tick marks, '1'/'10' labels, and jump-to-click."""
+    def _slider_row(self, lo_label, hi_label, default=5.0):
+        """Canvas slider 0-10, center = 5, ticks at 0, 5, 10."""
         SLIDER_W = 340
         TRACK_Y  = 18
         TICK_H   = 7
         THUMB_R  = 7
         PAD      = THUMB_R + 2
 
-        var = tk.DoubleVar(value=5.0)
+        var = tk.DoubleVar(value=default)
 
         outer = tk.Frame(self.frame, bg="#f5f5f5")
         outer.pack(padx=20, pady=(4, 0), anchor="w")
@@ -172,32 +158,28 @@ class PreSurveyApp(tk.Tk):
         track_len = track_x1 - track_x0
 
         def val_to_x(v):
-            return track_x0 + (v - 1) / 9 * track_len
+            return track_x0 + v / 10 * track_len
 
         def x_to_val(x):
-            return max(1.0, min(10.0, 1 + (x - track_x0) / track_len * 9))
+            return max(0.0, min(10.0, (x - track_x0) / track_len * 10))
 
-        canvas.create_line(track_x0, TRACK_Y, track_x1, TRACK_Y,
-                           fill="#aaa", width=2)
+        canvas.create_line(track_x0, TRACK_Y, track_x1, TRACK_Y, fill="#aaa", width=2)
 
-        for i in range(1, 11):
+        for i in range(0, 11):
             tx = val_to_x(i)
             canvas.create_line(tx, TRACK_Y, tx, TRACK_Y + TICK_H, fill="#888", width=1)
-            if i in (1, 10):
+            if i in (0, 5, 10):
                 canvas.create_text(tx, TRACK_Y + TICK_H + 8,
                                    text=str(i), font=("Arial", 8), fill="#444")
 
-        thumb_x = val_to_x(5.0)
-        thumb = canvas.create_oval(
-            thumb_x - THUMB_R, TRACK_Y - THUMB_R,
-            thumb_x + THUMB_R, TRACK_Y + THUMB_R,
-            fill="#2a6496", outline="#1e4d72", width=1
-        )
+        thumb_x = val_to_x(default)
+        thumb = canvas.create_oval(thumb_x - THUMB_R, TRACK_Y - THUMB_R,
+                                   thumb_x + THUMB_R, TRACK_Y + THUMB_R,
+                                   fill="#2a6496", outline="#1e4d72", width=1)
 
         def redraw(v):
             tx = val_to_x(float(v))
-            canvas.coords(thumb,
-                          tx - THUMB_R, TRACK_Y - THUMB_R,
+            canvas.coords(thumb, tx - THUMB_R, TRACK_Y - THUMB_R,
                           tx + THUMB_R, TRACK_Y + THUMB_R)
 
         def jump(event):
@@ -208,10 +190,7 @@ class PreSurveyApp(tk.Tk):
         canvas.bind("<Button-1>", jump)
         canvas.bind("<B1-Motion>", jump)
         var.trace_add("write", lambda *_: redraw(var.get()))
-
         return var
-
-    # ── UI construction ─────────────────────────────────────────────────────
 
     def _build_ui(self):
         outer = tk.Frame(self, bg="#f5f5f5")
@@ -220,28 +199,21 @@ class PreSurveyApp(tk.Tk):
         canvas = tk.Canvas(outer, bg="#f5f5f5", highlightthickness=0)
         scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
-
         scrollbar.pack(side="right", fill="y")
         canvas.pack(side="left", fill="both", expand=True)
 
         self.frame = tk.Frame(canvas, bg="#f5f5f5", padx=16, pady=16)
         win_id = canvas.create_window((0, 0), window=self.frame, anchor="nw")
 
-        def on_frame_configure(_):
-            canvas.configure(scrollregion=canvas.bbox("all"))
+        self.frame.bind("<Configure>", lambda _: canvas.configure(
+            scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(win_id, width=e.width))
+        canvas.bind_all("<MouseWheel>",
+                        lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
 
-        def on_canvas_configure(event):
-            canvas.itemconfig(win_id, width=event.width)
-
-        self.frame.bind("<Configure>", on_frame_configure)
-        canvas.bind("<Configure>", on_canvas_configure)
-        canvas.bind_all("<MouseWheel>", lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
-
-        # Title
         tk.Label(self.frame, text="Pre-Experiment Survey",
                  font=("Arial", 16, "bold"), bg="#f5f5f5").pack(pady=(0, 8))
 
-        # ── Header fields ──
         hf = tk.Frame(self.frame, bg="#f5f5f5")
         hf.pack(anchor="w", pady=4)
         tk.Label(hf, text="Participant ID:", font=("Arial", 10), bg="#f5f5f5").pack(side="left")
@@ -252,7 +224,6 @@ class PreSurveyApp(tk.Tk):
         self.date_var.insert(0, str(date.today()))
         self.date_var.pack(side="left", padx=6)
 
-        # ── Section 1 ──
         self._section("SECTION 1 — DEMOGRAPHICS")
 
         self._label("1. Age")
@@ -268,9 +239,9 @@ class PreSurveyApp(tk.Tk):
 
         self._label("3. Dominant Hand")
         self.hand = tk.StringVar(value="Right")
-        self._pill_row(self.hand, [("Left", "Left"), ("Right", "Right"), ("Ambidextrous", "Ambidextrous")])
+        self._pill_row(self.hand, [("Left", "Left"), ("Right", "Right"),
+                                   ("Ambidextrous", "Ambidextrous")])
 
-        # ── Section 2 ──
         self._section("SECTION 2 — SENSORY SCREENING")
 
         self._label("4. Do you have any hearing impairments?",
@@ -283,37 +254,31 @@ class PreSurveyApp(tk.Tk):
         self.tactile_var = tk.StringVar(value="No")
         self.tactile_detail = self._yes_no_with_detail(self.tactile_var, "Details:")
 
-        # ── Section 3 ──
         self._section("SECTION 3 — MUSICAL BACKGROUND")
 
         self._label("6. Do you have any formal music training?",
-                    "Describe any instruments, ensembles, and approximate years of training. "
-                    "e.g., 'Piano, 5 years classical lessons' or 'Choir, 3 years in high school'. Write N/A if none.")
+                    "Describe instruments, ensembles, and approximate years. "
+                    "e.g., 'Piano, 5 years classical lessons'. Write N/A if none.", wrap=True)
         self.music = tk.Text(self.frame, font=("Arial", 10), width=60, height=4)
         self.music.pack(padx=20, pady=2, anchor="w")
 
-        # ── Section 4 ──
         self._section("SECTION 4 — PERCEPTUAL SELF-ASSESSMENT")
 
-        self._label("7. How sensitive are you to subtle vibrations in everyday life?")
+        self._label("7. How sensitive are you to subtle vibrations in everyday life?",
+                    "0 = not at all sensitive, 10 = extremely sensitive")
         self.vib_sensitivity = self._slider_row("Not at all sensitive", "Extremely sensitive")
 
-        self._label("8. How experienced are you with haptic systems or devices?")
+        self._label("8. How experienced are you with haptic systems or devices?",
+                    "0 = no experience at all, 10 = have designed haptic systems")
         self.haptic_exp = self._slider_row("No experience at all", "Have designed haptic systems")
 
-        # ── Submit ──
-        tk.Button(
-            self.frame, text="Submit Survey", font=("Arial", 11, "bold"),
-            bg="#2a6496", fg="white", activebackground="#1e4d72",
-            relief="flat", padx=20, pady=8, command=self._submit
-        ).pack(pady=20)
+        tk.Button(self.frame, text="Submit Survey", font=("Arial", 11, "bold"),
+                  bg="#2a6496", fg="white", activebackground="#1e4d72",
+                  relief="flat", padx=20, pady=8, command=self._submit).pack(pady=20)
 
-        # Fix canvas size
         self.update_idletasks()
         canvas.configure(width=760)
         self.geometry("800x700")
-
-    # ── Submit ─────────────────────────────────────────────────────────────
 
     def _submit(self):
         pid = self.pid.get().strip()
@@ -324,25 +289,25 @@ class PreSurveyApp(tk.Tk):
         gender_val = "Prefer not to say" if self.gender_pnts.get() else self.gender.get().strip()
 
         data = {
-            "Participant ID": pid,
-            "Date": self.date_var.get().strip(),
-            "Age": self.age.get().strip(),
-            "Gender": gender_val,
-            "Dominant Hand": self.hand.get(),
-            "Hearing Impairment": self.hearing_var.get(),
-            "Hearing Impairment Details": self.hearing_detail.get().strip(),
-            "Tactile Impairment": self.tactile_var.get(),
-            "Tactile Impairment Detai ls": self.tactile_detail.get().strip(),
-            "Music Training": self.music.get("1.0", "end").strip(),
-            "Vibration Sensitivity (1-10)": round(self.vib_sensitivity.get(), 2),
-            "Haptic Experience (1-10)": round(self.haptic_exp.get(), 2),
+            "Participant ID":              pid,
+            "Date":                        self.date_var.get().strip(),
+            "Age":                         self.age.get().strip(),
+            "Gender":                      gender_val,
+            "Dominant Hand":               self.hand.get(),
+            "Hearing Impairment":          self.hearing_var.get(),
+            "Hearing Impairment Details":  self.hearing_detail.get().strip(),
+            "Tactile Impairment":          self.tactile_var.get(),
+            "Tactile Impairment Details":  self.tactile_detail.get().strip(),
+            "Music Training":              self.music.get("1.0", "end").strip(),
+            "Vibration Sensitivity (0-10)": round(self.vib_sensitivity.get(), 2),
+            "Haptic Experience (0-10)":    round(self.haptic_exp.get(), 2),
         }
 
         save_response(data)
-        messagebox.showinfo("Saved", f"Response for participant '{pid}' saved to {OUTPUT_FILE}.")
+        messagebox.showinfo("Saved",
+            f"Response for participant '{pid}' saved to {OUTPUT_FILE}.")
         self.destroy()
 
 
 if __name__ == "__main__":
-    app = PreSurveyApp()
-    app.mainloop()
+    PreSurveyApp().mainloop()

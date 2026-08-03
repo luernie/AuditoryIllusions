@@ -3,6 +3,8 @@ main.py — experiment runner
 ============================
 Install:  pip install pygame sounddevice soundfile
 Run:      python main.py
+
+After running, use aggregate.py to build the final summary files.
 """
 
 import tkinter as tk
@@ -147,7 +149,8 @@ def run_next_block():
         run_next_block()
 
     RatingWindow(root, exp_config, modality,
-                 state["audio_device"], state["haptic_device"], on_complete)
+                 state["audio_device"], state["haptic_device"], on_complete,
+                 block_number=idx + 1, total_blocks=total)
     try:
         root.mainloop()
     except KeyboardInterrupt:
@@ -163,13 +166,17 @@ def run_flashcards():
     root.resizable(False, False)
 
     def on_complete(results):
-        export_flashcards(results)
+        # Per-run temp files are already saved by FlashcardWindow.
+        # Run aggregate.py afterward to build the final summary files.
         finish()
 
     def on_break_done():
         FlashcardWindow(root, state["exp_config"],
                         state["audio_device"], state["haptic_device"],
-                        on_complete)
+                        on_complete,
+                        participant=state["participant"],
+                        exp_key=state["exp_key"],
+                        output_folder=OUTPUT_FOLDER)
 
     show_break_screen(
         root,
@@ -192,7 +199,7 @@ def export_block(block_result):
     stimulus = block_result["stimulus"]
 
     out_path = os.path.join(OUTPUT_FOLDER,
-        f"{_prefix()}p{p:03d}_block{block_result['block']:02d}_{stimulus}_{mod}_{ts}.csv")
+        f"{_prefix()}{ts}_p{p:03d}_block{block_result['block']:02d}_{stimulus}_{mod}.csv")
 
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -205,44 +212,6 @@ def export_block(block_result):
     print(f"Saved: {out_path}")
 
 
-# ── EXPORT: flashcards ────────────────────────────────────────────────────────
-
-def export_flashcards(results):
-    from collections import defaultdict
-    p        = state["participant"]
-    ts       = datetime.now().strftime("%Y%m%d_%H%M%S")
-    stimulus = state["exp_key"]
-
-    trial_path = os.path.join(OUTPUT_FOLDER,
-                              f"{_prefix()}p{p:03d}_{stimulus}_flashcards_{ts}.csv")
-    with open(trial_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Participant", "Stimulus", "Run", "Filename", "Modality", "Score"])
-        for r in results:
-            writer.writerow([p, stimulus, r["run"], r["filename"], r["modality"], r["score"]])
-
-    grouped = defaultdict(dict)
-    for r in results:
-        grouped[(r["filename"], r["modality"])][r["run"]] = r["score"]
-
-    avg_path = os.path.join(OUTPUT_FOLDER,
-                            f"{_prefix()}p{p:03d}_{stimulus}_flashcards_averages_{ts}.csv")
-    with open(avg_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Participant", "Stimulus", "Filename", "Modality",
-                         "Score_Run1", "Score_Run2", "Score_Run3", "Average"])
-        for (fname, mod), runs in sorted(grouped.items()):
-            s1 = runs.get(1, "")
-            s2 = runs.get(2, "")
-            s3 = runs.get(3, "")
-            scores = [s for s in [s1, s2, s3] if s != ""]
-            avg = round(sum(scores) / len(scores), 3) if scores else ""
-            writer.writerow([p, stimulus, fname, mod, s1, s2, s3, avg])
-
-    print(f"Saved: {trial_path}")
-    print(f"Saved: {avg_path}")
-
-
 # ── FINISH ────────────────────────────────────────────────────────────────────
 
 def finish():
@@ -251,7 +220,7 @@ def finish():
     stimulus = state["exp_key"]
 
     out_path = os.path.join(OUTPUT_FOLDER,
-                            f"{_prefix()}p{p:03d}_{stimulus}_ranking_summary_{ts}.csv")
+                            f"{_prefix()}{ts}_p{p:03d}_{stimulus}_ranking_summary.csv")
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Participant", "Block", "Stimulus", "Modality",
@@ -268,8 +237,7 @@ def finish():
         f"Experiment complete for participant {p}.\n\nResults saved to:\n{OUTPUT_FOLDER}")
     root.destroy()
     sys.exit(0)
- 
- 
+
 
 if __name__ == "__main__":
     show_setup()

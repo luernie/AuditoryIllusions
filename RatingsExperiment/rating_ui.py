@@ -8,6 +8,7 @@ import os
 import sys
 import subprocess
 import random
+import time
 
 AUDIO_EXTENSIONS = ('.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac')
 
@@ -23,7 +24,8 @@ NOISE_SCRIPT  = os.path.join(HERE, "_noise.py")
 
 
 class RatingWindow:
-    def __init__(self, root, exp_config, modality, audio_device, haptic_device, on_complete):
+    def __init__(self, root, exp_config, modality, audio_device, haptic_device, on_complete,
+                 block_number=None, total_blocks=None):
         self.root          = root
         self.exp_config    = exp_config
         self.modality      = modality
@@ -31,6 +33,8 @@ class RatingWindow:
         self.audio_device  = audio_device
         self.haptic_device = haptic_device
         self.on_complete   = on_complete
+        self.block_number  = block_number
+        self.total_blocks  = total_blocks
 
         self.audio_files     = []
         self.current_playing = None
@@ -41,9 +45,13 @@ class RatingWindow:
         self._build_ui()
         self._load_files()
 
+    # ── UI ────────────────────────────────────────────────────────────────────
+
     def _build_ui(self):
         mod_label = MODALITY_LABEL[self.modality]
-        self.root.title(f"{self.exp_config['ui_title']} — {mod_label}")
+        set_label = (f"Set {self.block_number}/{self.total_blocks} — "
+                     if self.block_number and self.total_blocks else "")
+        self.root.title(f"{set_label}{self.exp_config['ui_title']} — {mod_label}")
         self.root.state("zoomed")
         self.root.resizable(True, True)
         self.root.configure(bg="#f5f5f5")
@@ -52,14 +60,28 @@ class RatingWindow:
                           highlightbackground="#ddd", highlightthickness=1)
         banner.pack(fill=tk.X, padx=20, pady=(16, 0))
         bi = tk.Frame(banner, bg="#f0f0f0")
-        bi.pack(fill=tk.X, padx=16, pady=12)
+        bi.pack(fill=tk.X, padx=20, pady=16)
+
         tk.Label(bi, text=self.exp_config["ui_title"],
-                 bg="#f0f0f0", font=("Arial", 13, "bold")).pack(anchor="w")
+                 bg="#f0f0f0", font=("Arial", 18, "bold")).pack(anchor="w")
+
         if self.exp_config.get("show_condition", True):
             tk.Label(bi, text=f"Condition: {mod_label}",
-                     bg="#f0f0f0", fg="#555", font=("Arial", 10)).pack(anchor="w", pady=(2, 6))
-        tk.Label(bi, text=self.exp_config["instructions"],
-                 bg="#f0f0f0", fg="#333", font=("Arial", 9), justify="left").pack(anchor="w")
+                     bg="#f0f0f0", fg="#555", font=("Arial", 12)).pack(anchor="w", pady=(2, 10))
+
+        for heading, text in self.exp_config.get("definitions", []):
+            tk.Label(bi, text=heading, bg="#f0f0f0", fg="#111",
+                     font=("Arial", 13, "bold")).pack(anchor="w", pady=(6, 0))
+            tk.Label(bi, text=text, bg="#f0f0f0", fg="#333",
+                     font=("Arial", 12), justify="left",
+                     wraplength=1000).pack(anchor="w")
+
+        bullets_frame = tk.Frame(bi, bg="#f0f0f0")
+        bullets_frame.pack(anchor="w", pady=(12, 0), fill=tk.X)
+        for bullet in self.exp_config.get("rating_bullets", []):
+            tk.Label(bullets_frame, text=f"•  {bullet}", bg="#f0f0f0", fg="#111",
+                     font=("Arial", 13), justify="left",
+                     wraplength=1000).pack(anchor="w", pady=2)
 
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=10)
 
@@ -89,8 +111,8 @@ class RatingWindow:
                                        fg="#888", font=("Arial", 10))
         self.progress_label.pack(side=tk.LEFT)
         tk.Button(footer, text="Save & Continue →",
-                  font=("Arial", 11, "bold"), bg="#333", fg="white",
-                  relief=tk.FLAT, padx=18, pady=7,
+                  font=("Arial", 12, "bold"), bg="#333", fg="white",
+                  relief=tk.FLAT, padx=22, pady=10,
                   activebackground="#555", cursor="hand2",
                   command=self._save_and_continue).pack(side=tk.RIGHT)
 
@@ -99,6 +121,8 @@ class RatingWindow:
             self.canvas.yview_scroll(1, "units")
         else:
             self.canvas.yview_scroll(-1, "units")
+
+    # ── LOAD ──────────────────────────────────────────────────────────────────
 
     def _load_files(self):
         folder = os.path.abspath(self.folder)
@@ -113,6 +137,8 @@ class RatingWindow:
         self.audio_files = [[f, 0.0] for f in files]
         self._build_rows()
         self._update_progress()
+
+    # ── ROWS ──────────────────────────────────────────────────────────────────
 
     def _build_rows(self):
         for w in self.inner.winfo_children():
@@ -174,6 +200,8 @@ class RatingWindow:
             row.pack(fill=tk.X, pady=3)
             row._rank_lbl.config(text=str(i + 1))
 
+    # ── PLAYBACK ──────────────────────────────────────────────────────────────
+
     def _toggle_play(self, index):
         filepath = self.audio_files[index][0]
         self._stop_all()
@@ -193,7 +221,6 @@ class RatingWindow:
             self._set_icon(index, True)
             self.current_playing = index
             self.root.after(200, lambda: self._check_end(index))
-            # Unlock slider on first play
             for row in self.rows:
                 if row._index == index and not row._played:
                     row._played = True
@@ -210,14 +237,11 @@ class RatingWindow:
         self._procs.append(proc)
 
     def _launch_noise(self, device_id, filepath):
-        """Play white noise on the headphone device for the duration of the file."""
         import soundfile as sf
         try:
-            info = sf.info(filepath)
-            duration = info.duration
+            duration = sf.info(filepath).duration
         except Exception:
             duration = 10.0
-        import os
         log = open(os.path.join(HERE, '_noise_error.log'), 'a')
         proc = subprocess.Popen(
             [sys.executable, NOISE_SCRIPT, str(device_id), str(duration)],
@@ -249,6 +273,8 @@ class RatingWindow:
         elif self.current_playing == index:
             self.root.after(200, lambda: self._check_end(index))
 
+    # ── RATING ────────────────────────────────────────────────────────────────
+
     def _on_slide(self, index, val):
         score = round(float(val), 1)
         self.audio_files[index][1] = score
@@ -271,17 +297,17 @@ class RatingWindow:
         total = len(self.audio_files)
         self.progress_label.config(text=f"{rated} / {total} rated")
 
+    # ── SAVE ──────────────────────────────────────────────────────────────────
+
     def _save_and_continue(self):
         self._stop_all()
         self.current_playing = None
-        # Wait for audio subprocesses to fully release the device
-        import time
-        for _ in range(20):  # up to 2 seconds
+        for _ in range(20):
             self._procs = [p for p in self._procs if p.poll() is None]
             if not self._procs:
                 break
             time.sleep(0.1)
-        time.sleep(0.3)  # extra buffer for driver release
+        time.sleep(0.3)
         ratings = [(os.path.basename(f), s) for f, s in self.audio_files]
         self.root.destroy()
         self.on_complete(ratings)
