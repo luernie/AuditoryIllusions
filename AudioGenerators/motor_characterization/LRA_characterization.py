@@ -12,11 +12,14 @@
 
 import serial
 import time
+import os
 import numpy as np
 import sounddevice as sd
 import matplotlib.pyplot as plt
 
 # ── Config ─────────────────────────────────────────────────────────────────────
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 LIST_DEVICES = False       # Set False after you find your device index
 
@@ -256,20 +259,24 @@ def plot_results(commanded_hz, peak_hz, rms_g):
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    plt.savefig("lra_frequency_response.png", dpi=150, bbox_inches="tight")
-    print("Plot saved → lra_frequency_response.png")
+    # plt.savefig("lra_frequency_response.png", dpi=150, bbox_inches="tight")
+    # print("Plot saved → lra_frequency_response.png")
+    out_png = os.path.join(BASE_DIR, "lra_frequency_response.png")
+    plt.savefig(out_png, dpi=150, bbox_inches="tight")
+    print(f"Plot saved → {out_png}")
     plt.show()
 
 
 def save_csv(commanded_hz, peak_hz, rms_g):
+    out_csv = os.path.join(BASE_DIR, "lra_response_data.csv")
     np.savetxt(
-        "lra_response_data.csv",
+        out_csv,
         np.column_stack([commanded_hz, peak_hz, rms_g]),
         delimiter=",",
         header="commanded_hz,peak_hz,rms_g",
         comments=""
     )
-    print("Data saved → lra_response_data.csv")
+    print(f"Data saved → {out_csv}")
 
 
 # ── Entry point ────────────────────────────────────────────────────────────────

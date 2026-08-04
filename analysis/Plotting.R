@@ -18,7 +18,7 @@ library(ggpubr)
 # PATHS — edit here
 # ============================================================
 
-root_path   <- "C:/Users/luern/Documents/CodingProjects/AuditoryIllusions/output/"
+root_path   <- "C:/Users/luern/Documents/CodingProjects/AuditoryIllusions/analysis/output/"
 results_dir <- paste0(root_path, "anova_results/")
 plots_dir   <- paste0(root_path, "plots/")
 if (!dir.exists(plots_dir)) dir.create(plots_dir, recursive = TRUE)

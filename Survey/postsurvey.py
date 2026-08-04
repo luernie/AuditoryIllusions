@@ -12,6 +12,11 @@ from datetime import date
 
 OUTPUT_FILE = "post_survey_responses.xlsx"
 
+OUTPUT_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "post_survey_responses.xlsx"
+)
+
 COLUMNS = [
     "Participant ID", "Date", "Experiment",
     "Mental Demand (0-10)",
