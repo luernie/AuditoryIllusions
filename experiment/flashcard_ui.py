@@ -28,21 +28,48 @@ NOISE_SCRIPT  = os.path.join(HERE, "_noise.py")
 NUM_RUNS = 3
 
 
-def show_break_screen(root, message, button_text, on_continue):
+def show_break_screen(root, message, button_text, on_continue,
+                      require_checkbox=False,
+                      checkbox_text="I've notified the researcher — ready to continue"):
     for w in root.winfo_children():
         w.destroy()
     root.configure(bg="#f5f5f5")
-    root.geometry("480x280")
+    root.geometry("520x320")
     root.resizable(False, False)
     outer = tk.Frame(root, bg="#f5f5f5")
     outer.place(relx=0.5, rely=0.5, anchor="center")
     tk.Label(outer, text=message, bg="#f5f5f5", fg="#333",
-             font=("Arial", 14), justify="center").pack(pady=(0, 32))
-    tk.Button(outer, text=button_text,
+             font=("Arial", 14), justify="center").pack(pady=(0, 24))
+
+    btn = tk.Button(outer, text=button_text,
               font=("Arial", 11, "bold"), bg="#333", fg="white",
               relief=tk.FLAT, padx=24, pady=10,
               activebackground="#555", cursor="hand2",
-              command=on_continue).pack()
+              command=on_continue)
+
+    if require_checkbox:
+        ready_var = tk.BooleanVar(value=False)
+        cb_row = tk.Frame(outer, bg="#f5f5f5")
+        cb_row.pack(pady=(0, 20))
+
+        def toggle():
+            if ready_var.get():
+                btn.config(state=tk.NORMAL, bg="#333",
+                          activebackground="#555", cursor="hand2")
+            else:
+                btn.config(state=tk.DISABLED, bg="#ccc",
+                          activebackground="#ccc", cursor="arrow")
+
+        tk.Checkbutton(cb_row, variable=ready_var, bg="#f5f5f5",
+                       activebackground="#f5f5f5", cursor="hand2",
+                       command=toggle).pack(side=tk.LEFT)
+        tk.Label(cb_row, text=checkbox_text, bg="#f5f5f5", fg="#555",
+                 font=("Arial", 11)).pack(side=tk.LEFT, padx=(4, 0))
+
+        btn.config(state=tk.DISABLED, bg="#ccc",
+                  activebackground="#ccc", cursor="arrow")
+
+    btn.pack()
 
 
 class FlashcardWindow:
@@ -58,7 +85,7 @@ class FlashcardWindow:
         self.exp_key       = exp_key
         self.output_folder = output_folder
 
-        self.root.title("Rating Task")
+        self.root.title("Flashcard Task")
         self.root.configure(bg="#f5f5f5")
 
         self.results            = []
@@ -76,9 +103,12 @@ class FlashcardWindow:
 
         show_break_screen(
             self.root,
-            "You are about to begin the rating task.\n\nTake a moment to get ready.",
+            "Great work — the first part is complete.\n\n"
+            "Take a short break, then begin the second part when ready.",
             "Begin →",
-            self._start_next_run
+            self._start_next_run,
+            require_checkbox=True,
+            checkbox_text="I've notified the researcher — ready to begin"
         )
 
     # ── RUN MANAGEMENT ────────────────────────────────────────────────────────
@@ -123,22 +153,35 @@ class FlashcardWindow:
         self._current_run += 1
         self._stop_all()
         if self._current_run >= NUM_RUNS:
-            self.root.destroy()
-            self.on_complete(self.results)
+            self._show_final_screen()
         else:
             show_break_screen(
                 self.root,
                 "Time to take a short break.\n\nRelax for a moment before continuing.",
                 "Continue →",
-                self._start_next_run
+                self._start_next_run,
+                require_checkbox=True,
+                checkbox_text="I've notified the researcher — ready to continue"
             )
+
+    def _show_final_screen(self):
+        show_break_screen(
+            self.root,
+            "You have completed the experiment.\n\nYou may close this window.",
+            "Close",
+            self._finish
+        )
+
+    def _finish(self):
+        self.root.destroy()
+        self.on_complete(self.results)
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _build_card_ui(self):
         for w in self.root.winfo_children():
             w.destroy()
-        self.root.title(f"Set {self._current_run + 1}/{NUM_RUNS} — Rating Task")
+        self.root.title(f"Set {self._current_run + 1}/{NUM_RUNS} — Flashcard Task")
         self.root.geometry("680x680")
         self.root.resizable(False, False)
 
@@ -148,7 +191,7 @@ class FlashcardWindow:
         bi = tk.Frame(banner, bg="#f0f0f0")
         bi.pack(fill=tk.X, padx=20, pady=16)
 
-        tk.Label(bi, text="Rating Task",
+        tk.Label(bi, text="Flashcard Task",
                  bg="#f0f0f0", font=("Arial", 18, "bold")).pack(anchor="w")
 
         for heading, text in self.exp_config.get("definitions", []):

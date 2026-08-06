@@ -105,16 +105,31 @@ class RatingWindow:
 
         tk.Frame(self.root, bg="#ddd", height=1).pack(fill=tk.X, padx=20, pady=(10, 0))
 
+        # Notify-researcher checkbox row (anchored to the right)
+        notify_row = tk.Frame(self.root, bg="#f5f5f5")
+        notify_row.pack(fill=tk.X, padx=20, pady=(10, 0))
+        notify_group = tk.Frame(notify_row, bg="#f5f5f5")
+        notify_group.pack(side=tk.RIGHT)
+        self.ready_var = tk.BooleanVar(value=False)
+        tk.Label(notify_group,
+                 text="Please notify the researcher before continuing, then check this box.",
+                 bg="#f5f5f5", fg="#555", font=("Arial", 11)).pack(side=tk.LEFT, padx=(0, 4))
+        tk.Checkbutton(notify_group, variable=self.ready_var, bg="#f5f5f5",
+                       activebackground="#f5f5f5", cursor="hand2",
+                       command=self._toggle_ready).pack(side=tk.LEFT)
+
         footer = tk.Frame(self.root, bg="#f5f5f5")
-        footer.pack(fill=tk.X, padx=20, pady=10)
+        footer.pack(fill=tk.X, padx=20, pady=(6, 10))
         self.progress_label = tk.Label(footer, text="", bg="#f5f5f5",
                                        fg="#888", font=("Arial", 10))
         self.progress_label.pack(side=tk.LEFT)
-        tk.Button(footer, text="Save & Continue →",
-                  font=("Arial", 12, "bold"), bg="#333", fg="white",
+        self.save_btn = tk.Button(footer, text="Save & Continue →",
+                  font=("Arial", 12, "bold"), bg="#ccc", fg="white",
                   relief=tk.FLAT, padx=22, pady=10,
-                  activebackground="#555", cursor="hand2",
-                  command=self._save_and_continue).pack(side=tk.RIGHT)
+                  activebackground="#ccc", cursor="arrow",
+                  state=tk.DISABLED,
+                  command=self._save_and_continue)
+        self.save_btn.pack(side=tk.RIGHT)
 
     def _on_scroll(self, event):
         if event.num == 5 or (hasattr(event, 'delta') and event.delta < 0):
@@ -296,6 +311,14 @@ class RatingWindow:
         rated = sum(1 for _, s in self.audio_files if s != 0.0)
         total = len(self.audio_files)
         self.progress_label.config(text=f"{rated} / {total} rated")
+
+    def _toggle_ready(self):
+        if self.ready_var.get():
+            self.save_btn.config(state=tk.NORMAL, bg="#333",
+                                 activebackground="#555", cursor="hand2")
+        else:
+            self.save_btn.config(state=tk.DISABLED, bg="#ccc",
+                                 activebackground="#ccc", cursor="arrow")
 
     # ── SAVE ──────────────────────────────────────────────────────────────────
 

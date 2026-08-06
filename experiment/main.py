@@ -161,29 +161,18 @@ def run_next_block():
 
 def run_flashcards():
     root = tk.Tk()
-    root.title("Break")
-    root.geometry("480x280")
-    root.resizable(False, False)
 
     def on_complete(results):
         # Per-run temp files are already saved by FlashcardWindow.
         # Run aggregate.py afterward to build the final summary files.
         finish()
 
-    def on_break_done():
-        FlashcardWindow(root, state["exp_config"],
-                        state["audio_device"], state["haptic_device"],
-                        on_complete,
-                        participant=state["participant"],
-                        exp_key=state["exp_key"],
-                        output_folder=OUTPUT_FOLDER)
-
-    show_break_screen(
-        root,
-        "Great work — the first part is complete.\n\nTake a short break before continuing.",
-        "Continue →",
-        on_break_done
-    )
+    FlashcardWindow(root, state["exp_config"],
+                    state["audio_device"], state["haptic_device"],
+                    on_complete,
+                    participant=state["participant"],
+                    exp_key=state["exp_key"],
+                    output_folder=OUTPUT_FOLDER)
     try:
         root.mainloop()
     except KeyboardInterrupt:
