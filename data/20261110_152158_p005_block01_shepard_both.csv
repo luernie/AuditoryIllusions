@@ -1,0 +1,8 @@
+Participant,Block,Stimulus,Modality,Rank,Filename,Score
+5,1,shepard,both,1,pitch_decrease_strong_220to110Hz.wav,-7.6
+5,1,shepard,both,2,shepard_falling_haptic.wav,-5.9
+5,1,shepard,both,3,pitch_decrease_mild_220to156Hz.wav,-3.8
+5,1,shepard,both,4,pitch_constant_220to220Hz.wav,-1.6
+5,1,shepard,both,5,pitch_increase_mild_220to311Hz.wav,2.7
+5,1,shepard,both,6,shepard_rising_haptic.wav,4.7
+5,1,shepard,both,7,pitch_increase_strong_220to440Hz.wav,7.6
